@@ -1,223 +1,112 @@
 {% extends 'base.html' %}
 
+{% block title %}My Account – Roy Mart{% endblock %}
+
 {% block content %}
-<div class="container">
-    <div class="seller-header-banner">
-        <div>
-            <h2>Customer Dashboard — {{ customer['name'] }}</h2>
-            <p>User ID / Email: <strong>{{ customer['email'] }}</strong> — Track orders, download invoices, update credentials, and submit complaints.</p>
+<div style="max-width: 1100px; margin: 24px auto; padding: 0 16px 48px;">
+  <div style="background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+    <h1 style="margin: 0 0 6px;">Welcome, {{ customer['name'] }}</h1>
+    <p style="margin: 0; color: #64748b;">Account ID: #{{ customer['id'] }} | Email: {{ customer['email'] }}
+      {% if customer['is_blocked'] %}<span style="color: #dc2626; font-weight: 700;"> (Account Blocked by Admin)</span>{% endif %}
+    </p>
+  </div>
+
+  <!-- Orders -->
+  <div style="background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+    <h2 style="margin-top: 0;">My Orders ({{ orders|length }})</h2>
+    {% for o in orders %}
+      {% set info = o['info'] %}
+      <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <strong>Order #{{ info['id'] }} — <span style="color: #2563eb;">{{ info['status'] }}</span></strong>
+          <span>Total: <strong>₹{{ "%.2f"|format(info['total_price']) }}</strong> ({{ info['payment_method'] }} - {{ info['payment_status'] }})</span>
         </div>
-        <a href="{{ url_for('index') }}" class="btn-secondary">Continue Shopping</a>
-    </div>
+        <ul style="margin: 8px 0;">
+          {% for item in o['items'] %}
+            <li>{{ item['product_name'] }} × {{ item['quantity'] }} (₹{{ "%.2f"|format(item['price']) }})</li>
+          {% endfor %}
+        </ul>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <a href="{{ url_for('track_order', order_id=info['id']) }}" style="padding: 6px 12px; background: #334155; color: #fff; text-decoration: none; border-radius: 6px; font-size: 13px;">Track Order</a>
+          {% if info['status'] in invoice_statuses %}
+            <a href="{{ url_for('view_buyer_invoice', order_id=info['id']) }}" style="padding: 6px 12px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 6px; font-size: 13px;">View Invoice</a>
+          {% endif %}
+          {% if info['status'] in ('Order Placed', 'Confirmed') %}
+            <form action="{{ url_for('cancel_order', order_id=info['id']) }}" method="POST" style="margin:0;" onsubmit="return confirm('Cancel Order #{{ info['id'] }}?');">
+              <button type="submit" style="padding: 6px 12px; background: #dc2626; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer;">Cancel Order</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      <p style="color: #64748b;">You have not placed any orders yet.</p>
+    {% endfor %}
+  </div>
 
-    <!-- Edit User ID & Password -->
-    <div class="checkout-form-box" style="margin-bottom: 24px;">
-        <h3>Edit User ID &amp; Password</h3>
-        <form method="POST" action="{{ url_for('update_customer_profile', user_id=customer['id']) }}">
-            <div class="seller-form-grid">
-                <div>
-                    <label>Full Name</label>
-                    <input type="text" name="name" value="{{ customer['name'] }}" required>
-                </div>
-                <div>
-                    <label>User ID / Email</label>
-                    <input type="text" name="email" value="{{ customer['email'] }}" required>
-                </div>
-                <div>
-                    <label>New Password (leave blank to keep current)</label>
-                    <input type="password" name="new_password" placeholder="Enter new password">
-                </div>
-                <div>
-                    <label>Confirm New Password</label>
-                    <input type="password" name="confirm_password" placeholder="Confirm new password">
-                </div>
-            </div>
-            <button type="submit" class="btn-primary">Update User ID &amp; Password</button>
-        </form>
-    </div>
+  <!-- Raise a Complaint -->
+  <div style="background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+    <h2 style="margin-top: 0;">Raise a Complaint / Refund Request</h2>
+    <form action="{{ url_for('submit_complaint') }}" method="POST" style="display: grid; gap: 10px; max-width: 640px;">
+      <div style="display: flex; gap: 8px;">
+        <input type="text" id="comp_order_id" name="order_id" placeholder="Order # (optional)" style="flex: 1; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px;">
+        <button type="button" onclick="lookupOrderForComplaint()" style="padding: 9px 14px; background: #334155; color: #fff; border: none; border-radius: 6px; cursor: pointer;">Auto-Fill Order</button>
+      </div>
+      <select name="complaint_type" style="padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px;">
+        {% for ct in complaint_types %}
+          <option value="{{ ct }}">{{ ct }}</option>
+        {% endfor %}
+      </select>
+      <select id="comp_product_id" name="product_id" style="padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px;">
+        <option value="">-- Select Product (Optional) --</option>
+        {% for p in products %}
+          <option value="{{ p['id'] }}">{{ p['name'] }}</option>
+        {% endfor %}
+      </select>
+      <input type="text" id="comp_subject" name="subject" placeholder="Subject" required style="padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px;">
+      <textarea id="comp_message" name="message" rows="3" placeholder="Describe your issue..." required style="padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px;"></textarea>
+      <button type="submit" style="padding: 10px 18px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; width: fit-content;">Submit Complaint</button>
+    </form>
 
-    <!-- My Orders -->
-    <div class="admin-orders-section" style="margin-top: 0;">
-        <h3>My Orders ({{ orders|length }})</h3>
-        {% if orders %}
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Order #</th>
-                        <th>Items</th>
-                        <th>Total &amp; Payment</th>
-                        <th>Status</th>
-                        <th>Actions &amp; Invoice</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for entry in orders %}
-                    <tr>
-                        <td><strong>#{{ entry['info']['id'] }}</strong><br><small>{{ entry['info']['created_at'] }}</small></td>
-                        <td>
-                            {% for item in entry['items'] %}
-                                <div>{{ item['product_name'] }} (x{{ item['quantity'] }}) — ₹{{ "%.2f"|format(item['price'] * item['quantity']) }}</div>
-                            {% endfor %}
-                        </td>
-                        <td>
-                            <strong>₹{{ "%.2f"|format(entry['info']['total_price']) }}</strong><br>
-                            <small>{{ entry['info']['payment_method'] }} ({{ entry['info']['payment_status'] }})</small>
-                        </td>
-                        <td><span class="status-badge">{{ entry['info']['status'] }}</span></td>
-                        <td style="display: flex; flex-direction: column; gap: 6px;">
-                            <a href="{{ url_for('track_order', order_id=entry['info']['id']) }}" class="btn-secondary" style="text-align: center;">Track</a>
-                            {% if entry['info']['status'] in ('Order Placed', 'Confirmed') %}
-                                <form method="POST" action="{{ url_for('cancel_order', order_id=entry['info']['id']) }}" style="margin: 0;">
-                                    <button type="submit" class="btn-delete-sm" style="width: 100%;">Cancel Order</button>
-                                </form>
-                            {% endif %}
-                            {% if entry['info']['status'] in invoice_statuses %}
-                                <a href="{{ url_for('view_buyer_invoice', order_id=entry['info']['id']) }}" class="btn-primary" style="text-align: center;">View Invoice</a>
-                                <a href="{{ url_for('download_invoice_pdf', order_id=entry['info']['id']) }}" class="btn-update" style="text-align: center;">Download PDF</a>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <div class="empty-state"><p>You have not placed any orders yet.</p></div>
-        {% endif %}
-    </div>
+    {% if complaints %}
+      <h3 style="margin-top: 20px;">My Complaints</h3>
+      {% for c in complaints %}
+        <div style="border-top: 1px solid #e2e8f0; padding: 10px 0;">
+          <strong>#{{ c['id'] }} — {{ c['subject'] }}</strong> [{{ c['status'] }}]<br>
+          <small>{{ c['message'] }}</small>
+          {% if c['help_reply'] %}<div style="color: #166534; font-size: 13px; margin-top: 4px;"><strong>Help Desk:</strong> {{ c['help_reply'] }}</div>{% endif %}
+          {% if c['admin_solution'] %}<div style="color: #1e40af; font-size: 13px; margin-top: 4px;"><strong>Admin:</strong> {{ c['admin_solution'] }}</div>{% endif %}
+          {% if c['seller_refund_txn_id'] %}<div style="color: #0f172a; font-size: 13px; margin-top: 4px;"><strong>Refund Ref:</strong> {{ c['seller_refund_txn_id'] }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
 
-    <!-- Complaint & Refund Box with Auto-Fetch -->
-    <div class="checkout-form-box">
-        <h3>Submit a Complaint or Refund Request</h3>
-        <form method="POST" action="{{ url_for('submit_complaint') }}">
-            <div class="seller-form-grid">
-                <div>
-                    <label>Order Number (Auto-Fetches Order Details)</label>
-                    <input type="text" id="complaint_order_id" name="order_id" placeholder="e.g., 1">
-                    <small id="order_lookup_status" style="display: block; margin-top: 4px; color: #475569;"></small>
-                </div>
-                <div>
-                    <label>Product</label>
-                    <select id="complaint_product_id" name="product_id">
-                        <option value="">-- Select Product (Optional) --</option>
-                        {% for prod in products %}
-                            <option value="{{ prod['id'] }}">{{ prod['name'] }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label>Complaint Type</label>
-                    <select name="complaint_type">
-                        {% for ctype in complaint_types %}
-                            <option value="{{ ctype }}">{{ ctype }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label>Subject</label>
-                    <input type="text" id="complaint_subject" name="subject" required placeholder="Brief summary of issue">
-                </div>
-                <div class="full-width">
-                    <label>Complaint Details</label>
-                    <textarea id="complaint_message" name="message" rows="4" required placeholder="Describe your issue or refund reason..."></textarea>
-                </div>
-            </div>
-            <button type="submit" class="btn-primary">Submit to Help Desk</button>
-        </form>
-    </div>
-
-    <!-- My Submitted Complaints -->
-    <div class="admin-orders-section">
-        <h3>My Complaints ({{ complaints|length }})</h3>
-        {% if complaints %}
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Type &amp; Order</th>
-                        <th>Subject &amp; Message</th>
-                        <th>Status</th>
-                        <th>Support / Admin Response</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for c in complaints %}
-                    <tr>
-                        <td><strong>#{{ c['id'] }}</strong><br><small>{{ c['created_at'] }}</small></td>
-                        <td>
-                            <strong>{{ c['complaint_type'] }}</strong>
-                            {% if c['order_id'] %}<br>Order <strong>#{{ c['order_id'] }}</strong>{% endif %}
-                            {% if c['product_name'] %}<br><small>{{ c['product_name'] }}</small>{% endif %}
-                        </td>
-                        <td>
-                            <strong>{{ c['subject'] }}</strong>
-                            <p style="margin: 4px 0 0;">{{ c['message'] }}</p>
-                        </td>
-                        <td><span class="status-badge">{{ c['status'] }}</span></td>
-                        <td>
-                            {% if c['help_reply'] %}<div><strong>Help Desk:</strong> {{ c['help_reply'] }}</div>{% endif %}
-                            {% if c['admin_solution'] %}<div><strong>Admin:</strong> {{ c['admin_solution'] }}</div>{% endif %}
-                            {% if c['seller_refund_txn_id'] %}<div><strong>Refund Ref:</strong> <code>{{ c['seller_refund_txn_id'] }}</code></div>{% endif %}
-                            {% if not c['help_reply'] and not c['admin_solution'] %}
-                                <span style="color: #64748b;">Awaiting review</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <div class="empty-state"><p>No complaints submitted yet.</p></div>
-        {% endif %}
-    </div>
+  <!-- Update Profile -->
+  <div style="background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+    <h2 style="margin-top: 0;">Account Settings</h2>
+    <form action="{{ url_for('update_customer_profile', user_id=customer['id']) }}" method="POST" style="display: grid; gap: 10px; max-width: 480px;">
+      <input type="text" name="name" value="{{ customer['name'] }}" placeholder="Full Name" required style="padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px;">
+      <input type="email" name="email" value="{{ customer['email'] }}" placeholder="Email" required style="padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px;">
+      <input type="password" name="new_password" placeholder="New Password (leave blank to keep current)" style="padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px;">
+      <input type="password" name="confirm_password" placeholder="Confirm New Password" style="padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px;">
+      <button type="submit" style="padding: 10px 18px; background: #16a34a; color: #fff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; width: fit-content;">Update Account</button>
+    </form>
+  </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const orderInput = document.getElementById('complaint_order_id');
-    const statusEl = document.getElementById('order_lookup_status');
-    const productSelect = document.getElementById('complaint_product_id');
-    const subjectInput = document.getElementById('complaint_subject');
-    const messageInput = document.getElementById('complaint_message');
-
-    if (!orderInput) return;
-
-    function lookupOrder() {
-        const raw = orderInput.value.replace('#', '').trim();
-        if (!raw || !/^\d+$/.test(raw)) {
-            statusEl.textContent = '';
-            return;
-        }
-
-        statusEl.textContent = 'Looking up order details...';
-        fetch(`/api/order-lookup/${encodeURIComponent(raw)}`)
-            .then(res => res.json().then(data => ({ ok: res.ok, data })))
-            .then(({ ok, data }) => {
-                if (!ok || !data.found) {
-                    statusEl.textContent = data.message || 'Order not found.';
-                    statusEl.style.color = '#b91c1c';
-                    return;
-                }
-                statusEl.textContent = `Fetched: ${data.items_text || 'Order #' + data.order_id} (${data.status})`;
-                statusEl.style.color = '#166534';
-
-                if (data.first_product_id && productSelect) {
-                    productSelect.value = String(data.first_product_id);
-                }
-                if (data.suggested_subject && !subjectInput.value.trim()) {
-                    subjectInput.value = data.suggested_subject;
-                }
-                if (data.suggested_message && !messageInput.value.trim()) {
-                    messageInput.value = data.suggested_message;
-                }
-            })
-            .catch(() => {
-                statusEl.textContent = 'Could not fetch order details.';
-                statusEl.style.color = '#b91c1c';
-            });
+  async function lookupOrderForComplaint() {
+    const raw = document.getElementById('comp_order_id').value.replace('#', '').trim();
+    if (!raw) return;
+    const res = await fetch('/api/order-lookup/' + encodeURIComponent(raw));
+    const data = await res.json();
+    if (!data.found) {
+      alert(data.message || 'Order not found.');
+      return;
     }
-
-    orderInput.addEventListener('change', lookupOrder);
-    orderInput.addEventListener('blur', lookupOrder);
-});
+    if (data.first_product_id) document.getElementById('comp_product_id').value = data.first_product_id;
+    document.getElementById('comp_subject').value = data.suggested_subject;
+    document.getElementById('comp_message').value = data.suggested_message;
+  }
 </script>
 {% endblock %}

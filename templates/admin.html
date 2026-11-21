@@ -1,334 +1,380 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roy Mart – Master Admin Panel</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f9; color: #1e293b; margin: 0; padding: 0; }
+    .navbar { background: #0f172a; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .nav-brand { color: #fff; text-decoration: none; font-size: 1.25rem; font-weight: bold; }
+    .nav-links { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+    .nav-links a { color: #e2e8f0; text-decoration: none; font-size: 0.95rem; }
+    .container { max-width: 1280px; margin: 24px auto; padding: 0 18px 48px; }
+    .flash-msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-weight: 500; background: #e2e8f0; color: #0f172a; }
+    .flash-success { background: #dcfce7; color: #166534; }
+    .flash-warning { background: #fef9c3; color: #854d0e; }
+    .flash-danger  { background: #fee2e2; color: #991b1b; }
+    .flash-info    { background: #dbeafe; color: #1e40af; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .stat-card { background: #fff; padding: 16px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .stat-card h3 { margin: 0 0 6px; font-size: 0.85rem; color: #64748b; text-transform: uppercase; }
+    .stat-card .stat-val { font-size: 1.5rem; font-weight: bold; color: #0f172a; }
+    .panel { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .panel h2 { margin-top: 0; margin-bottom: 14px; font-size: 1.15rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.92rem; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; font-weight: 600; color: #334155; }
+    input, select, textarea { padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box; }
+    button { padding: 7px 12px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.88rem; }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-success { background: #16a34a; color: #fff; }
+    .btn-warning { background: #f59e0b; color: #fff; }
+    .btn-danger  { background: #dc2626; color: #fff; }
+    .inline-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .badge-blocked { color: #dc2626; font-weight: 700; }
+    .badge-active  { color: #16a34a; font-weight: 700; }
+    .edit-box { display: none; margin-top: 10px; padding: 12px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a href="{{ url_for('index') }}" class="nav-brand">Roy Mart – Admin</a>
+    <div class="nav-links">
+      <a href="{{ url_for('index') }}">Storefront</a>
+      <a href="{{ url_for('admin_dashboard') }}">Admin Panel</a>
+      <span>{{ admin_user.name if admin_user else 'sell1' }}</span>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+  </nav>
 
-{% block content %}
-<div class="container">
-    <div class="seller-header-banner">
-        <div>
-            <h2>Master Admin Panel — {{ admin_user['name'] }} ({{ admin_user['email'] }})</h2>
-            <p>Manage sellers, Help Desk credentials, escalated complaints, refunds, orders, and invoices.</p>
-        </div>
-        <a href="{{ url_for('index') }}" class="btn-secondary">View Storefront</a>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="container" style="margin-bottom: 0; padding-bottom: 0;">
+        <div class="flash-msg flash-{{ category }}">{{ message }}</div>
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-card"><h3>Sellers</h3><div class="stat-val">{{ seller_count }}</div></div>
+      <div class="stat-card"><h3>Customers</h3><div class="stat-val">{{ customers|length }}</div></div>
+      <div class="stat-card"><h3>Products</h3><div class="stat-val">{{ products|length }}</div></div>
+      <div class="stat-card"><h3>Orders</h3><div class="stat-val">{{ orders|length }}</div></div>
+      <div class="stat-card"><h3>Complaints</h3><div class="stat-val">{{ complaints|length }}</div></div>
     </div>
 
-    <!-- Registered Sellers: Edit & Moderation / Removal -->
-    <div class="admin-orders-section" style="margin-top: 0;">
-        <h3>Registered Sellers ({{ seller_count }}) — Edit &amp; Moderation</h3>
-        {% if sellers %}
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Seller ID</th>
-                        <th>Current Name &amp; User ID</th>
-                        <th>Edit Seller User ID &amp; Password</th>
-                        <th>Delete Seller &amp; Send Warning</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for s in sellers %}
-                    <tr>
-                        <td><strong>#{{ s['id'] }}</strong></td>
-                        <td>
-                            <strong>{{ s['name'] }}</strong><br>
-                            <small><code>{{ s['email'] }}</code></small>
-                        </td>
-                        <td>
-                            <form method="POST" action="{{ url_for('edit_seller_account', seller_id=s['id']) }}" style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0;">
-                                <input type="text" name="seller_name" value="{{ s['name'] }}" required placeholder="Seller Name" style="width: 130px; margin: 0; padding: 6px 8px;">
-                                <input type="text" name="seller_username" value="{{ s['email'] }}" required placeholder="User ID" style="width: 120px; margin: 0; padding: 6px 8px;">
-                                <input type="password" name="seller_password" placeholder="New Password (optional)" style="width: 155px; margin: 0; padding: 6px 8px;">
-                                <button type="submit" class="btn-update">Save Seller</button>
-                            </form>
-                        </td>
-                        <td>
-                            <form method="POST" action="{{ url_for('delete_seller', seller_id=s['id']) }}" style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0;">
-                                <input type="text" name="warning_message" placeholder="Reason / warning for misleading action..." style="flex: 1; min-width: 180px; margin: 0; padding: 6px 8px;">
-                                <button type="submit" class="btn-delete-sm">Delete Seller</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <div class="empty-state"><p>No registered sellers yet.</p></div>
-        {% endif %}
-    </div>
+    <!-- 1. Registered Customers -->
+    <section class="panel" id="customers-section">
+      <h2>Registered Customers</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email / User ID</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in customers %}
+          <tr>
+            <td>#{{ c.id }}</td>
+            <td>{{ c.name }}</td>
+            <td>{{ c.email }}</td>
+            <td>
+              {% if c.is_blocked %}<span class="badge-blocked">Blocked</span>{% else %}<span class="badge-active">Active</span>{% endif %}
+            </td>
+            <td>
+              <div class="inline-form">
+                <form action="{{ url_for('toggle_block_customer', customer_id=c.id) }}" method="POST" style="margin:0;">
+                  <button type="submit" class="{{ 'btn-success' if c.is_blocked else 'btn-warning' }}">{{ 'Unblock' if c.is_blocked else 'Block' }}</button>
+                </form>
+                <form action="{{ url_for('delete_customer', customer_id=c.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Permanently delete customer {{ c.name }}?');">
+                  <button type="submit" class="btn-danger">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">No registered customers found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
 
-    <!-- Help Desk Account Creation & Credential Editing -->
-    <div class="checkout-form-box">
-        <h3>Create Help Desk Account (User ID &amp; Password)</h3>
-        <form method="POST" action="{{ url_for('create_help_center_user') }}">
-            <div class="seller-form-grid">
-                <div>
-                    <label>Staff / Desk Name</label>
-                    <input type="text" name="hc_name" required placeholder="e.g., Support Agent 1">
-                </div>
-                <div>
-                    <label>Help Desk User ID</label>
-                    <input type="text" name="hc_username" required placeholder="e.g., help">
-                </div>
-                <div class="full-width">
-                    <label>Password</label>
-                    <input type="password" name="hc_password" required placeholder="Set password for Help Desk">
-                </div>
-            </div>
-            <button type="submit" class="btn-primary">Create Help Desk Credentials</button>
-        </form>
+    <!-- 2. Registered Sellers -->
+    <section class="panel" id="sellers-section">
+      <h2>Registered Sellers</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>User ID</th>
+            <th>Status</th>
+            <th>Block / Delete</th>
+            <th>Edit Account</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sellers %}
+          <tr>
+            <td>#{{ s.id }}</td>
+            <td>{{ s.name }}</td>
+            <td>{{ s.email }}</td>
+            <td>
+              {% if s.is_blocked %}<span class="badge-blocked">Blocked</span>{% else %}<span class="badge-active">Active</span>{% endif %}
+            </td>
+            <td>
+              <div class="inline-form">
+                <form action="{{ url_for('toggle_block_seller', seller_id=s.id) }}" method="POST" style="margin:0;">
+                  <button type="submit" class="{{ 'btn-success' if s.is_blocked else 'btn-warning' }}">{{ 'Unblock' if s.is_blocked else 'Block' }}</button>
+                </form>
+                <form action="{{ url_for('delete_seller', seller_id=s.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Delete seller {{ s.email }}?');">
+                  <input type="text" name="warning_message" placeholder="Warning / removal reason">
+                  <button type="submit" class="btn-danger">Delete</button>
+                </form>
+              </div>
+            </td>
+            <td>
+              <form action="{{ url_for('edit_seller_account', seller_id=s.id) }}" method="POST" class="inline-form">
+                <input type="text" name="seller_name" value="{{ s.name }}" placeholder="Name" required>
+                <input type="text" name="seller_username" value="{{ s.email }}" placeholder="User ID" required>
+                <input type="password" name="seller_password" placeholder="New password (optional)">
+                <button type="submit" class="btn-primary">Save</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6">No registered sellers found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
 
-        <div style="margin-top: 16px;">
-            <strong>Active Help Desk IDs:</strong>
-            {% if help_staff %}
-                {% for hc in help_staff %}
-                    <span class="user-badge" style="margin-left: 6px;">{{ hc['email'] }} ({{ hc['name'] }})</span>
-                {% endfor %}
-            {% else %}
-                <span style="color: #64748b; margin-left: 6px;">None</span>
-            {% endif %}
-        </div>
+    <!-- 3. Help Center Staff -->
+    <section class="panel" id="helpdesk-section">
+      <h2>Help Center Accounts</h2>
+      <form action="{{ url_for('create_help_center_user') }}" method="POST" class="inline-form" style="margin-bottom: 16px;">
+        <input type="text" name="hc_name" placeholder="Staff Name" required>
+        <input type="text" name="hc_username" placeholder="Help Desk User ID" required>
+        <input type="password" name="hc_password" placeholder="Password" required>
+        <button type="submit" class="btn-success">Create Help Center User</button>
+      </form>
 
-        {% if help_staff %}
-        <div style="margin-top: 18px; overflow-x: auto;">
-            <h4>Edit Help Desk User ID, Name &amp; Password</h4>
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Current Name</th>
-                        <th>Current User ID</th>
-                        <th>Edit User ID &amp; Password (Leave password blank to keep current)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for hc in help_staff %}
-                    <tr>
-                        <td><strong>#{{ hc['id'] }}</strong></td>
-                        <td>{{ hc['name'] }}</td>
-                        <td><code>{{ hc['email'] }}</code></td>
-                        <td>
-                            <form method="POST" action="{{ url_for('edit_help_center_user', hc_id=hc['id']) }}" style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0;">
-                                <input type="text" name="hc_name" value="{{ hc['name'] }}" required placeholder="Staff Name" style="width: 140px; margin: 0; padding: 6px 8px;">
-                                <input type="text" name="hc_username" value="{{ hc['email'] }}" required placeholder="Help Desk User ID" style="width: 140px; margin: 0; padding: 6px 8px;">
-                                <input type="password" name="hc_password" placeholder="New Password (optional)" style="width: 175px; margin: 0; padding: 6px 8px;">
-                                <button type="submit" class="btn-update">Update Help Desk</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% endif %}
-    </div>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>User ID</th>
+            <th>Update Account</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in help_staff %}
+          <tr>
+            <td>#{{ h.id }}</td>
+            <td>{{ h.name }}</td>
+            <td>{{ h.email }}</td>
+            <td>
+              <form action="{{ url_for('edit_help_center_user', hc_id=h.id) }}" method="POST" class="inline-form">
+                <input type="text" name="hc_name" value="{{ h.name }}" required>
+                <input type="text" name="hc_username" value="{{ h.email }}" required>
+                <input type="password" name="hc_password" placeholder="New password (optional)">
+                <button type="submit" class="btn-primary">Update</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">No Help Center users created yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
 
-    <!-- Registered Customers -->
-    <div class="admin-orders-section">
-        <h3>Registered Customers ({{ customers|length }})</h3>
-        {% if customers %}
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>User ID / Email</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for c in customers %}
-                    <tr>
-                        <td><strong>#{{ c['id'] }}</strong></td>
-                        <td>{{ c['name'] }}</td>
-                        <td>{{ c['email'] }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <div class="empty-state"><p>No customers registered yet.</p></div>
-        {% endif %}
-    </div>
+    <!-- 4. Complaints & Refunds -->
+    <section class="panel" id="complaints-section">
+      <h2>Complaints & Refund Management</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Customer & Order</th>
+            <th>Details</th>
+            <th>Status & Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for comp in complaints %}
+          <tr>
+            <td>#{{ comp.id }}</td>
+            <td>
+              <strong>{{ comp.customer_name }}</strong><br>
+              Order: {{ '#' ~ comp.order_id if comp.order_id else 'N/A' }}<br>
+              Type: {{ comp.complaint_type }}
+            </td>
+            <td>
+              <strong>{{ comp.subject }}</strong><br>
+              {{ comp.message }}
+              {% if comp.seller_refund_txn_id %}<br><small>Refund Txn: <strong>{{ comp.seller_refund_txn_id }}</strong></small>{% endif %}
+            </td>
+            <td>
+              <form action="{{ url_for('admin_manage_complaint', complaint_id=comp.id) }}" method="POST" class="inline-form">
+                <select name="status">
+                  {% for st in complaint_statuses %}
+                    <option value="{{ st }}" {% if comp.status == st %}selected{% endif %}>{{ st }}</option>
+                  {% endfor %}
+                </select>
+                <input type="text" name="admin_solution" value="{{ comp.admin_solution or '' }}" placeholder="Admin solution">
+                <input type="text" name="seller_notice" value="{{ comp.seller_notice or '' }}" placeholder="Notice to seller">
+                <label><input type="checkbox" name="approve_refund" {% if comp.refund_approved %}checked{% endif %}> Approve Refund</label>
+                <label><input type="checkbox" name="verify_refund_proof" {% if comp.refund_verified %}checked{% endif %}> Verify Refund</label>
+                <button type="submit" class="btn-primary">Save</button>
+                {% if comp.order_id %}
+                  <a href="{{ url_for('view_admin_refund_invoice', complaint_id=comp.id) }}">Refund Invoice</a>
+                {% endif %}
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">No complaints found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
 
-    <!-- Complaints, Escalations, Refunds & Credit Invoices -->
-    <div class="admin-orders-section">
-        <h3>Complaints, Refunds &amp; Credit Invoices ({{ complaints|length }})</h3>
-        <p style="color: #475569; font-size: 13px;">Closed complaints are automatically removed after 6 days.</p>
-        {% if complaints %}
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Customer &amp; Type</th>
-                        <th>Order / Product / Seller</th>
-                        <th>Issue &amp; Escalation</th>
-                        <th>Refund Proof &amp; Invoice</th>
-                        <th>Admin Decision</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for comp in complaints %}
-                    <tr>
-                        <td><strong>#{{ comp['id'] }}</strong><br><span class="status-badge">{{ comp['status'] }}</span></td>
-                        <td>
-                            <strong>{{ comp['customer_name'] }}</strong><br>
-                            <small>{{ comp['complaint_type'] }}</small><br>
-                            <small>{{ comp['created_at'] }}</small>
-                        </td>
-                        <td>
-                            {% if comp['order_id'] %}Order <strong>#{{ comp['order_id'] }}</strong><br>{% endif %}
-                            Product: <strong>{{ comp['product_name'] or 'N/A' }}</strong><br>
-                            Seller: <strong>{{ comp['seller_name'] or ('#' ~ comp['seller_id'] if comp['seller_id'] else 'N/A') }}</strong>
-                        </td>
-                        <td>
-                            <strong>{{ comp['subject'] }}</strong>
-                            <p style="margin: 4px 0;">{{ comp['message'] }}</p>
-                            {% if comp['help_reply'] %}<small><strong>Help Desk:</strong> {{ comp['help_reply'] }}</small><br>{% endif %}
-                            {% if comp['escalation_note'] %}<small><strong>Escalation Note:</strong> {{ comp['escalation_note'] }}</small><br>{% endif %}
-                            {% if comp['admin_solution'] %}<small><strong>Admin Solution:</strong> {{ comp['admin_solution'] }}</small>{% endif %}
-                        </td>
-                        <td>
-                            <div>Approved: <strong>{{ 'Yes' if comp['refund_approved'] else 'No' }}</strong></div>
-                            <div>Seller UPI/Txn: <code>{{ comp['seller_refund_txn_id'] or 'Not Submitted' }}</code></div>
-                            <div>Verified: <strong>{{ 'Yes' if comp['refund_verified'] else 'No' }}</strong></div>
-                            {% if comp['order_id'] and (comp['refund_approved'] or comp['seller_refund_txn_id'] or comp['refund_verified']) %}
-                                <div style="margin-top: 6px;">
-                                    <a href="{{ url_for('view_admin_refund_invoice', complaint_id=comp['id']) }}" class="btn-primary" style="display: inline-block; padding: 6px 10px; font-size: 12px;">
-                                        Refund Invoice (REF)
-                                    </a>
-                                </div>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <form method="POST" action="{{ url_for('admin_manage_complaint', complaint_id=comp['id']) }}" style="display: flex; flex-direction: column; gap: 6px;">
-                                <select name="status" style="margin: 0;">
-                                    {% for st in complaint_statuses %}
-                                        <option value="{{ st }}" {% if comp['status'] == st %}selected{% endif %}>{{ st }}</option>
-                                    {% endfor %}
-                                </select>
-                                <input type="text" name="admin_solution" value="{{ comp['admin_solution'] or '' }}" placeholder="Admin resolution note..." style="margin: 0; padding: 6px 8px;">
-                                <input type="text" name="seller_notice" placeholder="Notice to seller (optional)..." style="margin: 0; padding: 6px 8px;">
-                                <label style="font-size: 12.5px; margin: 0;">
-                                    <input type="checkbox" name="approve_refund" {% if comp['refund_approved'] %}checked{% endif %}>
-                                    Approve Refund &amp; Request Seller Proof
-                                </label>
-                                <label style="font-size: 12.5px; margin: 0;">
-                                    <input type="checkbox" name="verify_refund_proof" {% if comp['refund_verified'] %}checked{% endif %}>
-                                    Verify Seller Refund Proof &amp; Close
-                                </label>
-                                <button type="submit" class="btn-update">Save Decision</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <div class="empty-state"><p>No complaints recorded yet.</p></div>
-        {% endif %}
-    </div>
+    <!-- 5. Orders -->
+    <section class="panel" id="orders-section">
+      <h2>All Orders</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Customer & Address</th>
+            <th>Items & Payment</th>
+            <th>Status & Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders %}
+          {% set info = o['info'] %}
+          <tr>
+            <td>#{{ info['id'] }}</td>
+            <td>
+              <strong>{{ info['customer_name'] }}</strong><br>
+              Phone: {{ info['phone'] }}<br>
+              <small>{{ info['address'] }}</small>
+            </td>
+            <td>
+              {% for item in o['items'] %}
+                <div>{{ item['product_name'] }} × {{ item['quantity'] }} (₹{{ '%.2f'|format(item['price']) }})</div>
+              {% endfor %}
+              <strong>Total: ₹{{ '%.2f'|format(info['total_price']) }}</strong><br>
+              <small>Method: {{ info['payment_method'] }}</small>
+              {% if info['payer_upi_id'] and info['payer_upi_id'] != 'COD' %}
+                <br><small>UPI ID: <strong>{{ info['payer_upi_id'] }}</strong> | Ref: <strong>{{ info['transaction_id'] }}</strong></small>
+              {% endif %}
+            </td>
+            <td>
+              <form action="{{ url_for('update_order_status', order_id=info['id']) }}" method="POST" class="inline-form">
+                <select name="status">
+                  {% for st in statuses %}
+                    <option value="{{ st }}" {% if info['status'] == st %}selected{% endif %}>{{ st }}</option>
+                  {% endfor %}
+                </select>
+                <select name="payment_status">
+                  {% for ps in payment_statuses %}
+                    <option value="{{ ps }}" {% if info['payment_status'] == ps %}selected{% endif %}>{{ ps }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn-success">Update</button>
+                {% if info['status'] in invoice_statuses %}
+                  <a href="{{ url_for('view_seller_invoice', order_id=info['id']) }}">Invoice</a>
+                {% endif %}
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">No orders placed yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
 
-    <!-- All Orders & Invoices -->
-    <div class="admin-orders-section">
-        <h3>All Store Orders ({{ orders|length }})</h3>
-        {% if orders %}
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Order #</th>
-                        <th>Customer</th>
-                        <th>Items</th>
-                        <th>Total &amp; Payment</th>
-                        <th>Status</th>
-                        <th>Update &amp; Invoice</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for entry in orders %}
-                    <tr>
-                        <td><strong>#{{ entry['info']['id'] }}</strong><br><small>{{ entry['info']['created_at'] }}</small></td>
-                        <td><strong>{{ entry['info']['customer_name'] }}</strong><br><small>{{ entry['info']['phone'] }}</small></td>
-                        <td>
-                            {% for item in entry['items'] %}
-                                <div>{{ item['product_name'] }} (x{{ item['quantity'] }}) — ₹{{ "%.2f"|format(item['price'] * item['quantity']) }}</div>
-                            {% endfor %}
-                        </td>
-                        <td>
-                            <strong>₹{{ "%.2f"|format(entry['info']['total_price']) }}</strong><br>
-                            <small>{{ entry['info']['payment_method'] }} ({{ entry['info']['payment_status'] }})</small><br>
-                            <small>Txn: <code>{{ entry['info']['transaction_id'] or 'N/A' }}</code></small>
-                        </td>
-                        <td><span class="status-badge">{{ entry['info']['status'] }}</span></td>
-                        <td>
-                            <form method="POST" action="{{ url_for('update_order_status', order_id=entry['info']['id']) }}" style="display: flex; flex-direction: column; gap: 6px;">
-                                <select name="status" style="margin: 0;">
-                                    {% for st in statuses %}
-                                        <option value="{{ st }}" {% if entry['info']['status'] == st %}selected{% endif %}>{{ st }}</option>
-                                    {% endfor %}
-                                </select>
-                                <select name="payment_status" style="margin: 0;">
-                                    {% for ps in payment_statuses %}
-                                        <option value="{{ ps }}" {% if (entry['info']['payment_status'] or 'COD') == ps %}selected{% endif %}>{{ ps }}</option>
-                                    {% endfor %}
-                                </select>
-                                <button type="submit" class="btn-update">Save</button>
-                            </form>
-                            {% if entry['info']['status'] in invoice_statuses %}
-                                <div style="margin-top: 6px;">
-                                    <a href="{{ url_for('view_seller_invoice', order_id=entry['info']['id']) }}" class="btn-primary" style="display: block; text-align: center;">
-                                        View Invoice
-                                    </a>
-                                </div>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <div class="empty-state"><p>No orders placed yet.</p></div>
-        {% endif %}
-    </div>
+    <!-- 6. All Store Products -->
+    <section class="panel" id="products-section">
+      <h2>All Store Products</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Product</th>
+            <th>Category & Price</th>
+            <th>Stock, Edit & Delete</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in products %}
+          <tr>
+            <td>#{{ p.id }}</td>
+            <td>
+              <strong>{{ p.name }}</strong><br>
+              <small>Seller: {{ p.seller_name or 'Store' }}</small>
+              {% if p.description %}<br><small style="color:#475569;">About: {{ p.description }}</small>{% endif %}
+            </td>
+            <td>{{ p.category }} — ₹{{ '%.2f'|format(p.price) }}</td>
+            <td>
+              <div class="inline-form">
+                <form action="{{ url_for('update_stock', product_id=p.id) }}" method="POST" class="inline-form" style="margin:0;">
+                  <input type="number" name="stock_qty" value="{{ p.stock_qty }}" min="0" style="width: 80px;">
+                  <button type="submit" class="btn-primary">Stock</button>
+                </form>
 
-    <!-- All Store Products -->
-    <div class="admin-orders-section">
-        <h3>All Store Products ({{ products|length }})</h3>
-        {% if products %}
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Image</th>
-                        <th>Product</th>
-                        <th>Category</th>
-                        <th>Price</th>
-                        <th>Stock</th>
-                        <th>Seller</th>
-                        <th>Delete</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in products %}
-                    <tr>
-                        <td><strong>#{{ p['id'] }}</strong></td>
-                        <td>
-                            <img src="{{ url_for('static', filename='images/' + (p['image'] or 'placeholder.png')) }}"
-                                 alt="{{ p['name'] }}" class="seller-product-thumb">
-                        </td>
-                        <td><strong>{{ p['name'] }}</strong><br><small>{{ p['description'] }}</small></td>
-                        <td>{{ p['category'] }}</td>
-                        <td><strong>₹{{ "%.2f"|format(p['price']) }}</strong></td>
-                        <td>{{ p['stock_qty'] if p['stock_qty'] is not none else 0 }}</td>
-                        <td>{{ p['seller_name'] or ('#' ~ p['seller_id'] if p['seller_id'] else 'Store') }}</td>
-                        <td>
-                            <form method="POST" action="{{ url_for('delete_product', product_id=p['id']) }}" style="margin: 0;">
-                                <button type="submit" class="btn-delete-sm">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <div class="empty-state"><p>No products in store.</p></div>
-        {% endif %}
-    </div>
-</div>
-{% endblock %}
+                <button type="button" class="btn-warning" onclick="toggleEditProduct({{ p.id }})">Edit</button>
+
+                <form action="{{ url_for('delete_product', product_id=p.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Delete product {{ p.name }}?');">
+                  <button type="submit" class="btn-danger">Delete</button>
+                </form>
+              </div>
+
+              <div id="edit-product-{{ p.id }}" class="edit-box">
+                <form action="{{ url_for('edit_product', product_id=p.id) }}" method="POST" enctype="multipart/form-data">
+                  <div class="inline-form" style="margin-bottom: 8px;">
+                    <input type="text" name="name" value="{{ p.name }}" placeholder="Product Name" required>
+                    <input type="text" name="category" value="{{ p.category }}" placeholder="Category" required>
+                    <input type="number" step="0.01" min="0" name="price" value="{{ '%.2f'|format(p.price) }}" placeholder="Price" style="width: 110px;" required>
+                    <input type="number" min="0" name="stock_qty" value="{{ p.stock_qty }}" placeholder="Stock" style="width: 90px;" required>
+                  </div>
+                  <div class="inline-form" style="margin-bottom: 8px;">
+                    <textarea name="description" rows="2" placeholder="About the product / description..." style="width: 100%;">{{ p.description or '' }}</textarea>
+                  </div>
+                  <div class="inline-form">
+                    <input type="file" name="image" accept="image/*">
+                    <button type="submit" class="btn-success">Save Product Changes</button>
+                    <button type="button" onclick="toggleEditProduct({{ p.id }})">Cancel</button>
+                  </div>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">No products available.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <script>
+    function toggleEditProduct(productId) {
+      const box = document.getElementById('edit-product-' + productId);
+      if (!box) return;
+      box.style.display = (box.style.display === 'block') ? 'none' : 'block';
+    }
+  </script>
+</body>
+</html>

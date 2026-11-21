@@ -1,134 +1,35 @@
 {% extends 'base.html' %}
 
+{% block title %}Track Order – Roy Mart{% endblock %}
+
 {% block content %}
-<style>
-    .track-wrap { max-width: 960px; margin: 24px auto; padding: 0 16px; }
-    .track-search-box { background: #fff; padding: 22px; border-radius: 12px; box-shadow: 0 2px 10px rgba(15,23,42,0.07); margin-bottom: 20px; }
-    .track-search-box h2 { margin: 0 0 12px; font-size: 22px; color: #0f172a; }
-    .track-form-row { display: flex; gap: 10px; align-items: center; }
-    .track-form-row input { flex: 1; padding: 11px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; margin: 0; }
-    .track-form-row button { padding: 11px 20px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
-    .track-form-row button:hover { background: #1d4ed8; }
-
-    .track-card { background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 2px 12px rgba(15,23,42,0.08); }
-    .track-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid #e2e8f0; margin-bottom: 18px; }
-    .track-header h3 { margin: 0; font-size: 20px; color: #0f172a; }
-    .track-badge { padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #dbeafe; color: #1d4ed8; }
-
-    .track-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 22px; }
-    .track-info-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
-    .track-info-item span { display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 4px; }
-    .track-info-item strong { font-size: 14px; color: #0f172a; }
-
-    .step-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin: 14px 0 24px; }
-    .step-box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 8px; text-align: center; font-size: 12px; font-weight: 600; color: #64748b; }
-    .step-num { width: 24px; height: 24px; line-height: 24px; border-radius: 50%; background: #cbd5e1; color: #fff; font-size: 12px; font-weight: 700; margin: 0 auto 6px; }
-    .step-box.done { background: #eff6ff; border-color: #93c5fd; color: #1e40af; }
-    .step-box.done .step-num { background: #2563eb; }
-    .step-box.now { background: #dbeafe; border-color: #2563eb; color: #1d4ed8; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
-    .step-box.now .step-num { background: #1d4ed8; }
-    .step-box.cancel { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
-    .step-box.cancel .step-num { background: #dc2626; }
-
-    .items-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    .items-table th, .items-table td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }
-    .items-table th { background: #f8fafc; color: #334155; font-weight: 700; }
-
-    @media (max-width: 768px) {
-        .step-grid { grid-template-columns: repeat(2, 1fr); }
-        .track-form-row { flex-direction: column; align-items: stretch; }
-    }
-</style>
-
-<div class="track-wrap">
-    <div class="track-search-box">
-        <h2>Track Your Order</h2>
-        <form method="POST" action="{{ url_for('track_order') }}" class="track-form-row">
-            <input type="text" name="order_id" value="{{ order['id'] if order else request.args.get('order_id', '') }}" placeholder="Enter Order Number (e.g., 4)" required>
-            <button type="submit">Track Order</button>
-        </form>
-    </div>
+<div style="max-width: 760px; margin: 24px auto; padding: 0 16px;">
+  <div style="background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);">
+    <h1 style="margin-top: 0;">Track Your Order</h1>
+    <form method="POST" action="{{ url_for('track_order') }}" style="display: flex; gap: 10px; margin-bottom: 20px;">
+      <input type="text" name="order_id" value="{{ order['id'] if order else '' }}" placeholder="Enter Order Number (e.g., 1)" required style="flex: 1; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px;">
+      <button type="submit" style="padding: 10px 20px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Track</button>
+    </form>
 
     {% if order %}
-        {% set steps = ['Order Placed', 'Confirmed', 'Processing', 'Shipped', 'Out for Delivery', 'Delivered'] %}
-        {% set active_idx = steps.index(order['status']) if order['status'] in steps else -1 %}
+      <div style="border-top: 1px solid #e2e8f0; padding-top: 16px;">
+        <h3 style="margin-top: 0;">Order #{{ order['id'] }} — <span style="color: #2563eb;">{{ order['status'] }}</span></h3>
+        <p><strong>Customer:</strong> {{ order['customer_name'] }} | <strong>Phone:</strong> {{ order['phone'] }}</p>
+        <p><strong>Delivery Address:</strong> {{ order['address'] }}</p>
+        <p><strong>Payment:</strong> {{ order['payment_method'] }} ({{ order['payment_status'] }})</p>
+        {% if order['payer_upi_id'] and order['payer_upi_id'] != 'COD' %}
+          <p><strong>UPI ID:</strong> {{ order['payer_upi_id'] }} | <strong>Transaction Ref:</strong> {{ order['transaction_id'] }}</p>
+        {% endif %}
 
-        <div class="track-card">
-            <div class="track-header">
-                <h3>Order #{{ order['id'] }} — {{ order['customer_name'] }}</h3>
-                <span class="track-badge">{{ order['status'] }}</span>
-            </div>
-
-            <div class="track-info-grid">
-                <div class="track-info-item">
-                    <span>Delivery Address</span>
-                    <strong>{{ order['address'] }}</strong>
-                </div>
-                <div class="track-info-item">
-                    <span>Phone</span>
-                    <strong>{{ order['phone'] }}</strong>
-                </div>
-                <div class="track-info-item">
-                    <span>Payment</span>
-                    <strong>{{ order['payment_method'] or 'Cash on Delivery' }}</strong><br>
-                    <small>{{ order['payment_status'] or 'COD' }}</small>
-                </div>
-                <div class="track-info-item">
-                    <span>Total Amount</span>
-                    <strong>₹{{ "%.2f"|format(order['total_price']) }}</strong>
-                </div>
-            </div>
-
-            <h4 style="margin: 0 0 8px;">Order Progress</h4>
-            <div class="step-grid">
-                {% for st in steps %}
-                    {% set idx = loop.index0 %}
-                    {% if order['status'] == 'Cancelled' %}
-                        <div class="step-box cancel">
-                            <div class="step-num">{{ loop.index }}</div>
-                            <div>{{ st }}</div>
-                        </div>
-                    {% elif idx < active_idx %}
-                        <div class="step-box done">
-                            <div class="step-num">&#10003;</div>
-                            <div>{{ st }}</div>
-                        </div>
-                    {% elif idx == active_idx %}
-                        <div class="step-box now">
-                            <div class="step-num">{{ loop.index }}</div>
-                            <div>{{ st }}</div>
-                        </div>
-                    {% else %}
-                        <div class="step-box">
-                            <div class="step-num">{{ loop.index }}</div>
-                            <div>{{ st }}</div>
-                        </div>
-                    {% endif %}
-                {% endfor %}
-            </div>
-
-            <h4 style="margin: 0 0 6px;">Items in this Order</h4>
-            <table class="items-table">
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Qty</th>
-                        <th>Price</th>
-                        <th>Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in items %}
-                    <tr>
-                        <td><strong>{{ item['product_name'] }}</strong></td>
-                        <td>{{ item['quantity'] }}</td>
-                        <td>₹{{ "%.2f"|format(item['price']) }}</td>
-                        <td><strong>₹{{ "%.2f"|format(item['price'] * item['quantity']) }}</strong></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <h4>Items Ordered</h4>
+        <ul>
+          {% for item in items %}
+            <li>{{ item['product_name'] }} × {{ item['quantity'] }} — ₹{{ "%.2f"|format(item['price'] * item['quantity']) }}</li>
+          {% endfor %}
+        </ul>
+        <p style="font-size: 18px; font-weight: 800;">Total Paid: ₹{{ "%.2f"|format(order['total_price']) }}</p>
+      </div>
     {% endif %}
+  </div>
 </div>
 {% endblock %}

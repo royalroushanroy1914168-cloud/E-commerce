@@ -1,114 +1,167 @@
-{% extends 'base.html' %}
-
-{% block content %}
-<div class="container">
-    <h2>Checkout</h2>
-    <div class="checkout-wrapper">
-        <!-- Order Summary -->
-        <div class="checkout-summary">
-            <h3>Order Summary</h3>
-            <ul class="summary-list">
-                {% for pid, item in cart.items() %}
-                    <li>
-                        <span>{{ item['name'] }} &times; {{ item['quantity'] }}</span>
-                        <strong>₹{{ "%.2f"|format(item['price'] * item['quantity']) }}</strong>
-                    </li>
-                {% endfor %}
-            </ul>
-            <hr>
-            <div class="summary-total">
-                <span>Total Payable:</span>
-                <strong>₹{{ "%.2f"|format(total_price) }}</strong>
-            </div>
-            <a href="{{ url_for('view_cart') }}" class="back-link">&larr; Edit Cart</a>
-        </div>
-
-        <!-- Delivery & Payment Details -->
-        <div class="checkout-form-box">
-            <h3>Delivery & Payment Details</h3>
-            <form method="POST">
-                <label for="customer_name">Full Name</label>
-                <input type="text" id="customer_name" name="customer_name" value="{{ session.get('user_name', '') }}" required>
-
-                <label for="address">Delivery Address</label>
-                <textarea id="address" name="address" rows="3" required placeholder="House/Hostel No., Street, City, Pincode"></textarea>
-
-                <label for="phone">Phone Number</label>
-                <input type="tel" id="phone" name="phone" required placeholder="10-digit mobile number">
-
-                <label style="display: block; font-weight: 600; margin-bottom: 8px;">Select Payment Method</label>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px;">
-                    <label style="display: flex; align-items: center; gap: 8px; padding: 12px; border: 2px solid #2563eb; background: #eff6ff; border-radius: 8px; cursor: pointer; font-weight: 600;" id="cod-card">
-                        <input type="radio" name="payment_method" value="Cash on Delivery" checked onchange="togglePaymentMethod('cod')" style="width: auto; margin: 0;">
-                        <span>Cash on Delivery (COD)</span>
-                    </label>
-
-                    <label style="display: flex; align-items: center; gap: 8px; padding: 12px; border: 2px solid #d1d5db; background: #f9fafb; border-radius: 8px; cursor: pointer; font-weight: 600;" id="online-card">
-                        <input type="radio" name="payment_method" value="Online QR Payment" onchange="togglePaymentMethod('online')" style="width: auto; margin: 0;">
-                        <span>Online Payment (QR Code)</span>
-                    </label>
-                </div>
-
-                <!-- Seller QR Scanner Box (Shown when Online Payment is selected) -->
-                <div id="qr-payment-box" style="display: none; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                    <h4 style="margin-bottom: 8px; color: #1d4ed8;">Scan Seller QR Code to Pay ₹{{ "%.2f"|format(total_price) }}</h4>
-
-                    <div style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; margin: 12px 0;">
-                        {% if seller_qrs %}
-                            {% for s in seller_qrs %}
-                                <div style="text-align: center; background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                                    <p style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">Seller: {{ s['name'] }}</p>
-                                    {% if s['qr_code'] %}
-                                        <img src="{{ url_for('static', filename='images/' + s['qr_code']) }}"
-                                             alt="{{ s['name'] }} QR Scanner"
-                                             style="width: 180px; height: 180px; object-fit: contain; border: 1px solid #e5e7eb; border-radius: 6px;">
-                                    {% else %}
-                                        <p style="font-size: 12px; color: #dc2626; max-width: 180px; padding: 20px 0;">
-                                            Seller has not uploaded a QR scanner yet. Please select Cash on Delivery.
-                                        </p>
-                                    {% endif %}
-                                </div>
-                            {% endfor %}
-                        {% else %}
-                            <p style="font-size: 13px; color: #dc2626;">
-                                No seller QR scanner found for this cart. Please select Cash on Delivery.
-                            </p>
-                        {% endif %}
-                    </div>
-
-                    <label for="transaction_id">UPI / Payment Transaction ID</label>
-                    <input type="text" id="transaction_id" name="transaction_id" placeholder="Enter UPI Transaction / Reference ID">
-                </div>
-
-                <button type="submit" class="btn-primary btn-full">Place Order</button>
-            </form>
-        </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roy Mart – Checkout & Order Booking</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f9; color: #1e293b; margin: 0; padding: 0; }
+    .navbar { background: #0f172a; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .nav-brand { color: #fff; text-decoration: none; font-size: 1.25rem; font-weight: bold; }
+    .nav-links a { color: #e2e8f0; text-decoration: none; margin-left: 16px; }
+    .container { max-width: 960px; margin: 24px auto; padding: 0 18px 48px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 22px; }
+    @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+    .card { background: #fff; padding: 22px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .card h2 { margin-top: 0; font-size: 1.15rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.92rem; }
+    .req { color: #dc2626; }
+    .form-group input, .form-group select { width: 100%; padding: 9px 11px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; box-sizing: border-box; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .qr-box { display: none; background: #f8fafc; border: 1px solid #cbd5e1; padding: 14px; border-radius: 8px; margin-top: 12px; }
+    .qr-item { text-align: center; margin-bottom: 12px; }
+    .qr-item img { max-width: 180px; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .btn-book { width: 100%; background: #16a34a; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .flash-msg { max-width: 960px; margin: 16px auto 0; padding: 12px 16px; border-radius: 8px; background: #fee2e2; color: #991b1b; font-weight: 600; }
+    .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+    .summary-total { display: flex; justify-content: space-between; padding-top: 12px; font-size: 1.1rem; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a href="{{ url_for('index') }}" class="nav-brand">Roy Mart</a>
+    <div class="nav-links">
+      <a href="{{ url_for('index') }}">Home</a>
+      <a href="{{ url_for('view_cart') }}">Cart</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
     </div>
-</div>
+  </nav>
 
-<script>
-function togglePaymentMethod(mode) {
-    const qrBox = document.getElementById('qr-payment-box');
-    const txnInput = document.getElementById('transaction_id');
-    const codCard = document.getElementById('cod-card');
-    const onlineCard = document.getElementById('online-card');
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      {% if category == 'blocked_popup' %}
+        <div id="blockedModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+          <div style="background: #fff; padding: 24px 28px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.25);">
+            <h3 style="color: #dc2626; margin-top: 0;">You Are Blocked</h3>
+            <p style="color: #334155; margin: 12px 0 20px;">{{ message }}</p>
+            <button type="button" onclick="document.getElementById('blockedModal').style.display='none'" style="background: #dc2626; color: #fff; border: none; padding: 10px 22px; border-radius: 8px; font-weight: 600; cursor: pointer;">OK</button>
+          </div>
+        </div>
+      {% else %}
+        <div class="flash-msg">{{ message }}</div>
+      {% endif %}
+    {% endfor %}
+  {% endwith %}
 
-    if (mode === 'online') {
-        qrBox.style.display = 'block';
+  <div class="container">
+    <div class="card">
+      <h2>Delivery Details & Payment</h2>
+      <form method="POST" action="{{ url_for('checkout') }}" id="checkoutForm">
+        <div class="form-group">
+          <label for="customer_name">1. Full Name <span class="req">*</span></label>
+          <input type="text" id="customer_name" name="customer_name" value="{{ session.get('user_name', '') }}" placeholder="Enter full name" required>
+        </div>
+
+        <div class="form-group">
+          <label for="phone">2. Contact Number (10 Digits) <span class="req">*</span></label>
+          <input type="tel" id="phone" name="phone" pattern="[0-9]{10}" maxlength="10" minlength="10" inputmode="numeric" placeholder="Enter 10-digit mobile number" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)" required>
+        </div>
+
+        <div class="form-group">
+          <label for="house_building">3. House No. / Building Name <span class="req">*</span></label>
+          <input type="text" id="house_building" name="house_building" placeholder="e.g., Flat 102, Green Residency" required>
+        </div>
+
+        <div class="form-group">
+          <label for="road_area_colony">4. Road Name / Area / Colony <span class="req">*</span></label>
+          <input type="text" id="road_area_colony" name="road_area_colony" placeholder="e.g., Station Road, Sector 4" required>
+        </div>
+
+        <div class="row-2">
+          <div class="form-group">
+            <label for="pin_code">5. Pin Code (6 Digits) <span class="req">*</span></label>
+            <input type="text" id="pin_code" name="pin_code" pattern="[0-9]{6}" maxlength="6" minlength="6" inputmode="numeric" placeholder="e.g., 201306" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)" required>
+          </div>
+          <div class="form-group">
+            <label for="city">6. City <span class="req">*</span></label>
+            <input type="text" id="city" name="city" placeholder="Enter city" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="state">7. State <span class="req">*</span></label>
+          <input type="text" id="state" name="state" placeholder="Enter state" required>
+        </div>
+
+        <div class="form-group">
+          <label for="payment_method">Payment Method <span class="req">*</span></label>
+          <select id="payment_method" name="payment_method" onchange="toggleQrPayment()" required>
+            <option value="Cash on Delivery">Cash on Delivery (COD)</option>
+            <option value="Online QR Payment">Online Payment by QR Code</option>
+          </select>
+        </div>
+
+        <div id="qrSection" class="qr-box">
+          {% if seller_qrs %}
+            {% for sq in seller_qrs %}
+              <div class="qr-item">
+                <p style="margin: 0 0 6px; font-weight: 600;">Scan Seller QR ({{ sq.name }})</p>
+                {% if sq.qr_code %}
+                  <img src="{{ url_for('static', filename='images/' + sq.qr_code) }}" alt="Payment QR Code">
+                {% else %}
+                  <p style="color: #64748b; font-size: 0.88rem;">No QR image uploaded for this seller.</p>
+                {% endif %}
+              </div>
+            {% endfor %}
+          {% endif %}
+
+          <div class="form-group">
+            <label for="payer_upi_id">Your UPI ID (Required for Online QR Payment) <span class="req">*</span></label>
+            <input type="text" id="payer_upi_id" name="payer_upi_id" placeholder="e.g., royalroy@okicici or 9876543210@ybl">
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="transaction_id">UPI Transaction / UTR Reference ID <span class="req">*</span></label>
+            <input type="text" id="transaction_id" name="transaction_id" placeholder="Enter 12-digit UPI Ref / Transaction ID">
+          </div>
+        </div>
+
+        <button type="submit" class="btn-book">Book Order (₹{{ '%.2f'|format(total_price) }})</button>
+      </form>
+    </div>
+
+    <div class="card" style="height: fit-content;">
+      <h2>Order Summary</h2>
+      {% for pid, item in cart.items() %}
+        <div class="summary-row">
+          <span>{{ item.name }} × {{ item.quantity }}</span>
+          <span>₹{{ '%.2f'|format(item.price * item.quantity) }}</span>
+        </div>
+      {% endfor %}
+      <div class="summary-total">
+        <span>Total Payable</span>
+        <span>₹{{ '%.2f'|format(total_price) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleQrPayment() {
+      const method = document.getElementById('payment_method').value;
+      const qrSection = document.getElementById('qrSection');
+      const upiInput = document.getElementById('payer_upi_id');
+      const txnInput = document.getElementById('transaction_id');
+      if (method === 'Online QR Payment') {
+        qrSection.style.display = 'block';
+        upiInput.required = true;
         txnInput.required = true;
-        onlineCard.style.borderColor = '#2563eb';
-        onlineCard.style.background = '#eff6ff';
-        codCard.style.borderColor = '#d1d5db';
-        codCard.style.background = '#f9fafb';
-    } else {
-        qrBox.style.display = 'none';
+      } else {
+        qrSection.style.display = 'none';
+        upiInput.required = false;
         txnInput.required = false;
-        txnInput.value = '';
-        codCard.style.borderColor = '#2563eb';
-        codCard.style.background = '#eff6ff';
-        onlineCard.style.borderColor = '#d1d5db';
-        onlineCard.style.background = '#f9fafb';
+      }
     }
-}
-</script>
-{% endblock %}
+    toggleQrPayment();
+  </script>
+</body>
+</html>

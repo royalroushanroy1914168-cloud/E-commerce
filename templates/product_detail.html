@@ -1,115 +1,58 @@
 {% extends 'base.html' %}
 
+{% block title %}{{ product['name'] }} – Roy Mart{% endblock %}
+
 {% block content %}
-<div class="container">
-    <div style="margin-bottom: 16px;">
-        <a href="{{ url_for('index') }}" class="btn-secondary">&larr; Back to Store</a>
+<div style="max-width: 1000px; margin: 24px auto; padding: 0 16px;">
+  <div style="background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); display: grid; grid-template-columns: 1fr 1.3fr; gap: 24px;">
+    <div style="background: #f8fafc; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 16px; min-height: 260px;">
+      <img src="{{ url_for('static', filename='images/' + (product['image'] or 'placeholder.png')) }}"
+           alt="{{ product['name'] }}"
+           style="max-width: 100%; max-height: 280px; object-fit: contain;"
+           onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22240%22 height=%22160%22><rect width=%22240%22 height=%22160%22 fill=%22%23e2e8f0%22/><text x=%22120%22 y=%2286%22 font-family=%22sans-serif%22 font-size=%2214%22 fill=%22%23475569%22 text-anchor=%22middle%22>No Image</text></svg>';">
     </div>
+    <div>
+      <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; background: #e0f2fe; color: #0369a1;">{{ product['category'] }}</span>
+      <h1 style="margin: 10px 0 6px; font-size: 26px;">{{ product['name'] }}</h1>
+      <p style="margin: 0 0 12px; color: #64748b; font-size: 14px;">Sold by: <strong>{{ product['seller_name'] or 'Roy Mart Store' }}</strong> | Rating: <strong>{{ avg_rating }} ★</strong> ({{ review_count }} reviews)</p>
+      <div style="font-size: 24px; font-weight: 800; color: #0f172a; margin-bottom: 12px;">₹{{ "%.2f"|format(product['price']) }}</div>
+      <p style="color: #334155; line-height: 1.6; margin-bottom: 18px;">{{ product['description'] or 'No description available.' }}</p>
 
-    <div class="checkout-form-box" style="margin-top: 0;">
-        <div class="seller-form-grid" style="align-items: start;">
-            <div style="text-align: center; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                <img src="{{ url_for('static', filename='images/' + (product['image'] or 'placeholder.png')) }}"
-                     alt="{{ product['name'] }}"
-                     style="max-width: 100%; max-height: 320px; object-fit: contain; border-radius: 8px;"
-                     onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22280%22 height=%22200%22 viewBox=%220 0 280 200%22><rect width=%22280%22 height=%22200%22 rx=%228%22 fill=%22%23e2e8f0%22/><text x=%22140%22 y=%22106%22 font-family=%22sans-serif%22 font-size=%2214%22 font-weight=%22600%22 fill=%22%23475569%22 text-anchor=%22middle%22>No Product Image</text></svg>';">
-            </div>
-
-            <div>
-                <span class="category-tag">{{ product['category'] }}</span>
-                <h2 style="margin: 8px 0;">{{ product['name'] }}</h2>
-
-                <div style="margin-bottom: 12px; color: #334155;">
-                    <strong>Rating:</strong>
-                    {% if review_count > 0 %}
-                        {{ avg_rating }} / 5 ({{ review_count }} {{ 'review' if review_count == 1 else 'reviews' }})
-                    {% else %}
-                        No ratings yet
-                    {% endif %}
-                </div>
-
-                <div style="font-size: 24px; font-weight: 800; margin-bottom: 12px;">
-                    &#8377;{{ "%.2f"|format(product['price']) }}
-                </div>
-
-                <div style="margin-bottom: 14px;">
-                    {% if (product['stock_qty'] or 0) > 0 %}
-                        <span class="stock-label">In Stock ({{ product['stock_qty'] }})</span>
-                    {% else %}
-                        <span class="status-badge">Out of Stock</span>
-                    {% endif %}
-                    {% if product['seller_name'] %}
-                        <small style="margin-left: 10px; color: #475569;">Sold by: <strong>{{ product['seller_name'] }}</strong></small>
-                    {% endif %}
-                </div>
-
-                <p style="color: #334155; margin-bottom: 20px;">
-                    {{ product['description'] or 'No description available for this product.' }}
-                </p>
-
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    {% if (product['stock_qty'] or 0) > 0 %}
-                        <a href="{{ url_for('add_to_cart', product_id=product['id']) }}" class="btn-primary">Add to Cart</a>
-                    {% else %}
-                        <button type="button" class="btn-disabled" disabled>Out of Stock</button>
-                    {% endif %}
-                    <a href="{{ url_for('view_cart') }}" class="btn-secondary">Go to Cart</a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Rate & Comment on Product -->
-    <div class="checkout-form-box">
-        <h3>Rate &amp; Comment on This Product</h3>
-        <form method="POST" action="{{ url_for('add_product_review', product_id=product['id']) }}">
-            <div class="seller-form-grid">
-                <div>
-                    <label>Your Name</label>
-                    <input type="text"
-                           name="reviewer_name"
-                           value="{{ session.get('user_name', '') }}"
-                           placeholder="Enter your name"
-                           required>
-                </div>
-                <div>
-                    <label>Rating (1 to 5 Stars)</label>
-                    <select name="rating" required>
-                        <option value="5">5 Stars — Excellent</option>
-                        <option value="4">4 Stars — Good</option>
-                        <option value="3">3 Stars — Average</option>
-                        <option value="2">2 Stars — Below Average</option>
-                        <option value="1">1 Star — Poor</option>
-                    </select>
-                </div>
-                <div class="full-width">
-                    <label>Your Comment / Review</label>
-                    <textarea name="comment" rows="3" placeholder="Share your experience with this product..." required></textarea>
-                </div>
-            </div>
-            <button type="submit" class="btn-primary">Submit Rating &amp; Comment</button>
-        </form>
-    </div>
-
-    <!-- Customer Reviews List -->
-    <div class="admin-orders-section">
-        <h3>Customer Reviews ({{ review_count }})</h3>
-        {% if reviews %}
-            {% for rev in reviews %}
-            <div style="padding: 14px 0; border-bottom: 1px solid #e2e8f0;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                    <strong>{{ rev['reviewer_name'] }}</strong>
-                    <span class="status-badge">{{ rev['rating'] }} / 5 Stars</span>
-                </div>
-                <p style="margin: 8px 0 4px; color: #1e293b;">{{ rev['comment'] }}</p>
-                <small style="color: #64748b;">{{ rev['created_at'] }}</small>
-            </div>
-            {% endfor %}
+      <div style="display: flex; gap: 10px; align-items: center;">
+        {% if (product['stock_qty'] or 0) > 0 %}
+          <a href="{{ url_for('add_to_cart', product_id=product['id']) }}" style="background: #2563eb; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-weight: 600;">Add to Cart ({{ product['stock_qty'] }} left)</a>
         {% else %}
-            <div class="empty-state">
-                <p>No reviews yet. Be the first to rate and comment on this product!</p>
-            </div>
+          <span style="background: #e2e8f0; color: #64748b; padding: 10px 20px; border-radius: 8px; font-weight: 600;">Out of Stock</span>
         {% endif %}
+        <a href="{{ url_for('index') }}" style="background: #334155; color: #fff; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-weight: 600;">Back to Store</a>
+      </div>
     </div>
+  </div>
+
+  <!-- Customer Reviews -->
+  <div style="background: #fff; border-radius: 14px; padding: 24px; margin-top: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);">
+    <h2 style="margin-top: 0;">Customer Reviews</h2>
+    <form action="{{ url_for('add_product_review', product_id=product['id']) }}" method="POST" style="display: grid; gap: 10px; max-width: 540px; margin-bottom: 20px;">
+      <input type="text" name="reviewer_name" value="{{ session.get('user_name', '') }}" placeholder="Your Name" style="padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px;">
+      <select name="rating" required style="padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px;">
+        <option value="5">5 Stars – Excellent</option>
+        <option value="4">4 Stars – Good</option>
+        <option value="3">3 Stars – Average</option>
+        <option value="2">2 Stars – Fair</option>
+        <option value="1">1 Star – Poor</option>
+      </select>
+      <textarea name="comment" rows="3" placeholder="Write your comment about this product..." required style="padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px;"></textarea>
+      <button type="submit" style="background: #16a34a; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; width: fit-content;">Submit Review</button>
+    </form>
+
+    {% for rev in reviews %}
+      <div style="border-top: 1px solid #e2e8f0; padding: 12px 0;">
+        <strong>{{ rev['reviewer_name'] }}</strong> — <span style="color: #f59e0b; font-weight: 700;">{{ rev['rating'] }} ★</span>
+        <p style="margin: 6px 0 0; color: #334155;">{{ rev['comment'] }}</p>
+      </div>
+    {% else %}
+      <p style="color: #64748b;">No reviews yet. Be the first to review this product!</p>
+    {% endfor %}
+  </div>
 </div>
 {% endblock %}

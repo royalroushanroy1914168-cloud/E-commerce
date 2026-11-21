@@ -1,238 +1,56 @@
 {% extends 'base.html' %}
 
+{% block title %}Shopping Cart – Roy Mart{% endblock %}
+
 {% block content %}
-<style>
-    .cart-wrap {
-        max-width: 960px;
-        margin: 28px auto;
-        padding: 0 16px;
-    }
+<div style="max-width: 900px; margin: 24px auto; padding: 0 16px;">
+  <div style="background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);">
+    <h1 style="margin-top: 0;">Your Shopping Cart</h1>
 
-    .cart-card {
-        background-color: #ffffff;
-        border-radius: 12px;
-        padding: 24px;
-        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
-    }
+    {% if cart %}
+      {% set ns = namespace(grand_total=0) %}
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: left;">
+            <th style="padding: 10px;">Product</th>
+            <th style="padding: 10px;">Price</th>
+            <th style="padding: 10px;">Quantity</th>
+            <th style="padding: 10px;">Subtotal</th>
+            <th style="padding: 10px;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pid, item in cart.items() %}
+            {% set sub = item['price'] * item['quantity'] %}
+            {% set ns.grand_total = ns.grand_total + sub %}
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; font-weight: 600;">{{ item['name'] }}</td>
+              <td style="padding: 10px;">₹{{ "%.2f"|format(item['price']) }}</td>
+              <td style="padding: 10px;">
+                <a href="{{ url_for('decrease_qty', product_id=pid) }}" style="padding: 4px 10px; background: #e2e8f0; color: #0f172a; text-decoration: none; border-radius: 4px; font-weight: bold;">-</a>
+                <span style="margin: 0 8px; font-weight: 700;">{{ item['quantity'] }}</span>
+                <a href="{{ url_for('increase_qty', product_id=pid) }}" style="padding: 4px 10px; background: #e2e8f0; color: #0f172a; text-decoration: none; border-radius: 4px; font-weight: bold;">+</a>
+              </td>
+              <td style="padding: 10px; font-weight: 700;">₹{{ "%.2f"|format(sub) }}</td>
+              <td style="padding: 10px;">
+                <a href="{{ url_for('remove_from_cart', product_id=pid) }}" style="color: #dc2626; text-decoration: none; font-weight: 600;">Remove</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
 
-    .cart-title {
-        font-size: 24px;
-        font-weight: 700;
-        color: #0f172a;
-        margin-bottom: 18px;
-    }
-
-    .cart-table-box {
-        overflow-x: auto;
-    }
-
-    .cart-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 15px;
-    }
-
-    .cart-table th {
-        background-color: #f8fafc;
-        color: #334155;
-        font-weight: 700;
-        text-align: left;
-        padding: 13px 16px;
-        border-bottom: 2px solid #e2e8f0;
-        white-space: nowrap;
-    }
-
-    .cart-table td {
-        padding: 15px 16px;
-        border-bottom: 1px solid #f1f5f9;
-        vertical-align: middle;
-        color: #0f172a;
-    }
-
-    .cart-prod-name {
-        font-weight: 700;
-        font-size: 15px;
-        color: #0f172a;
-    }
-
-    .qty-box {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background-color: #f8fafc;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        padding: 4px 8px;
-    }
-
-    .qty-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 26px;
-        height: 26px;
-        border-radius: 6px;
-        background-color: #e2e8f0;
-        color: #0f172a;
-        font-weight: 700;
-        font-size: 15px;
-        text-decoration: none;
-        transition: background-color 0.15s ease;
-    }
-
-    .qty-btn:hover {
-        background-color: #2563eb;
-        color: #ffffff;
-    }
-
-    .qty-value {
-        min-width: 22px;
-        text-align: center;
-        font-weight: 700;
-        font-size: 14px;
-    }
-
-    .remove-link {
-        color: #dc2626;
-        font-weight: 600;
-        font-size: 14px;
-        text-decoration: none;
-        padding: 6px 10px;
-        border-radius: 6px;
-        background-color: #fef2f2;
-        transition: background-color 0.15s ease;
-    }
-
-    .remove-link:hover {
-        background-color: #fee2e2;
-        color: #991b1b;
-    }
-
-    .cart-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 16px;
-        margin-top: 22px;
-        padding-top: 18px;
-        border-top: 2px solid #f1f5f9;
-    }
-
-    .cart-grand-total {
-        font-size: 20px;
-        font-weight: 700;
-        color: #0f172a;
-    }
-
-    .cart-grand-total span {
-        color: #2563eb;
-    }
-
-    .cart-actions {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
-
-    .cart-btn-continue {
-        display: inline-block;
-        padding: 10px 18px;
-        border-radius: 8px;
-        background-color: #475569;
-        color: #ffffff;
-        font-weight: 600;
-        font-size: 14px;
-        text-decoration: none;
-    }
-
-    .cart-btn-continue:hover {
-        background-color: #334155;
-    }
-
-    .cart-btn-checkout {
-        display: inline-block;
-        padding: 10px 20px;
-        border-radius: 8px;
-        background-color: #2563eb;
-        color: #ffffff;
-        font-weight: 600;
-        font-size: 14px;
-        text-decoration: none;
-    }
-
-    .cart-btn-checkout:hover {
-        background-color: #1d4ed8;
-    }
-
-    .cart-empty {
-        text-align: center;
-        padding: 36px 16px;
-    }
-
-    .cart-empty p {
-        color: #475569;
-        margin-bottom: 16px;
-        font-size: 15px;
-    }
-</style>
-
-<div class="cart-wrap">
-    <div class="cart-card">
-        <h2 class="cart-title">Your Shopping Cart</h2>
-
-        {% if cart %}
-            {% set ns = namespace(grand_total=0.0) %}
-            <div class="cart-table-box">
-                <table class="cart-table">
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Price</th>
-                            <th>Quantity</th>
-                            <th>Subtotal</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for pid, item in cart.items() %}
-                            {% set line_total = (item['price'] * item['quantity']) %}
-                            {% set ns.grand_total = ns.grand_total + line_total %}
-                            <tr>
-                                <td class="cart-prod-name">{{ item['name'] }}</td>
-                                <td>₹{{ "%.2f"|format(item['price']) }}</td>
-                                <td>
-                                    <div class="qty-box">
-                                        <a href="{{ url_for('decrease_qty', product_id=pid) }}" class="qty-btn" title="Decrease quantity">&minus;</a>
-                                        <span class="qty-value">{{ item['quantity'] }}</span>
-                                        <a href="{{ url_for('increase_qty', product_id=pid) }}" class="qty-btn" title="Increase quantity">+</a>
-                                    </div>
-                                </td>
-                                <td><strong>₹{{ "%.2f"|format(line_total) }}</strong></td>
-                                <td>
-                                    <a href="{{ url_for('remove_from_cart', product_id=pid) }}" class="remove-link">Remove</a>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="cart-footer">
-                <div class="cart-grand-total">
-                    Grand Total: <span>₹{{ "%.2f"|format(ns.grand_total) }}</span>
-                </div>
-                <div class="cart-actions">
-                    <a href="{{ url_for('index') }}" class="cart-btn-continue">Continue Shopping</a>
-                    <a href="{{ url_for('checkout') }}" class="cart-btn-checkout">Proceed to Checkout</a>
-                </div>
-            </div>
-        {% else %}
-            <div class="cart-empty">
-                <p>Your shopping cart is currently empty.</p>
-                <a href="{{ url_for('index') }}" class="cart-btn-checkout">Browse Products</a>
-            </div>
-        {% endif %}
-    </div>
+      <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="font-size: 20px; font-weight: 800;">Total: ₹{{ "%.2f"|format(ns.grand_total) }}</div>
+        <div style="display: flex; gap: 10px;">
+          <a href="{{ url_for('index') }}" style="padding: 10px 16px; background: #334155; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600;">Continue Shopping</a>
+          <a href="{{ url_for('checkout') }}" style="padding: 10px 20px; background: #16a34a; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 700;">Proceed to Checkout</a>
+        </div>
+      </div>
+    {% else %}
+      <p style="color: #64748b;">Your cart is currently empty.</p>
+      <a href="{{ url_for('index') }}" style="display: inline-block; padding: 10px 18px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600;">Browse Products</a>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

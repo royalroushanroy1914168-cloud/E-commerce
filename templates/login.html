@@ -1,32 +1,37 @@
 {% extends 'base.html' %}
 
+{% block title %}Login – Roy Mart{% endblock %}
+
 {% block content %}
-<div class="auth-card">
-    <h2>Login to ShopEase</h2>
-    <form method="POST">
-        <div class="role-selector" style="grid-template-columns: repeat(3, 1fr);">
-            <label class="role-option">
-                <input type="radio" name="login_type" value="customer" checked>
-                <span>Customer</span>
-            </label>
-            <label class="role-option">
-                <input type="radio" name="login_type" value="seller">
-                <span>Seller / Admin</span>
-            </label>
-            <label class="role-option">
-                <input type="radio" name="login_type" value="helpdesk">
-                <span>Help Center</span>
-            </label>
-        </div>
+<div style="max-width: 440px; margin: 36px auto; padding: 0 16px;">
+  <div style="background: #fff; border-radius: 14px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
+    <h1 style="margin-top: 0; font-size: 24px; text-align: center;">Login to Roy Mart</h1>
+    <form method="POST" style="display: grid; gap: 14px;">
+      <div>
+        <label style="display: block; font-weight: 600; margin-bottom: 5px;">Account Role</label>
+        <select name="login_type" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+          <option value="customer">Customer</option>
+          <option value="seller">Seller / Master Admin</option>
+          <option value="helpdesk">Help Center Staff</option>
+        </select>
+      </div>
 
-        <label for="email">Email / Username / Help Center ID</label>
-        <input type="text" id="email" name="email" required placeholder="Enter your email, seller username, or Help Center ID">
+      <div>
+        <label style="display: block; font-weight: 600; margin-bottom: 5px;">Email or User ID</label>
+        <input type="text" name="email" placeholder="Enter email or user ID" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box;">
+      </div>
 
-        <label for="password">Password</label>
-        <input type="password" id="password" name="password" required placeholder="Enter your password">
+      <div>
+        <label style="display: block; font-weight: 600; margin-bottom: 5px;">Password</label>
+        <input type="password" name="password" placeholder="Enter password" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box;">
+      </div>
 
-        <button type="submit" class="btn-primary btn-full">Login</button>
+      <button type="submit" style="padding: 11px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;">Login</button>
     </form>
-    <p class="auth-switch">New to ShopEase? <a href="{{ url_for('register') }}">Create an account</a></p>
+
+    <p style="text-align: center; margin-top: 16px; font-size: 14px; color: #475569;">
+      New to Roy Mart? <a href="{{ url_for('register') }}" style="color: #2563eb; font-weight: 600;">Create an Account</a>
+    </p>
+  </div>
 </div>
 {% endblock %}

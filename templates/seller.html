@@ -1,252 +1,278 @@
-{% extends 'base.html' %}
-
-{% block content %}
-<div class="container">
-    <div class="seller-header-banner">
-        <div>
-            <h2>Seller Dashboard — {{ seller['name'] }} ({{ seller['email'] }})</h2>
-            <p>Manage your user ID, password, products, payment QR scanner, order statuses, invoice copies, and refund requests.</p>
-        </div>
-        <a href="{{ url_for('index') }}" class="btn-secondary">View Storefront</a>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roy Mart – Seller Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f9; color: #1e293b; margin: 0; padding: 0; }
+    .navbar { background: #0f172a; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .nav-brand { color: #fff; text-decoration: none; font-size: 1.25rem; font-weight: bold; }
+    .nav-links { display: flex; gap: 14px; align-items: center; }
+    .nav-links a { color: #e2e8f0; text-decoration: none; font-size: 0.95rem; }
+    .container { max-width: 1200px; margin: 24px auto; padding: 0 18px 48px; }
+    .panel { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .panel h2 { margin-top: 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; font-size: 1.15rem; }
+    .flash-msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-weight: 600; background: #e2e8f0; }
+    .flash-success { background: #dcfce7; color: #166534; }
+    .flash-warning { background: #fef9c3; color: #854d0e; }
+    .flash-danger  { background: #fee2e2; color: #991b1b; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    input, select, textarea { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box; }
+    button { padding: 7px 12px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.88rem; }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-success { background: #16a34a; color: #fff; }
+    .btn-warning { background: #f59e0b; color: #fff; }
+    .btn-danger  { background: #dc2626; color: #fff; }
+    .btn-track   { background: #334155; color: #fff; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; }
+    .inline-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .edit-box { display: none; margin-top: 10px; padding: 12px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a href="{{ url_for('index') }}" class="nav-brand">Roy Mart – Seller Panel</a>
+    <div class="nav-links">
+      <a href="{{ url_for('index') }}">Storefront</a>
+      <span>{{ seller['name'] }} ({{ seller['email'] }})</span>
+      <a href="{{ url_for('logout') }}">Logout</a>
     </div>
+  </nav>
 
-    <!-- Edit Seller User ID, Name & Password -->
-    <div class="checkout-form-box" style="margin-bottom: 24px;">
-        <h3>Edit Seller User ID &amp; Password</h3>
-        <form method="POST" action="{{ url_for('update_seller_profile', seller_id=seller['id']) }}">
-            <div class="seller-form-grid">
-                <div>
-                    <label>Seller Name</label>
-                    <input type="text" name="name" value="{{ seller['name'] }}" required>
-                </div>
-                <div>
-                    <label>Seller User ID (Login Username)</label>
-                    <input type="text" name="user_id_login" value="{{ seller['email'] }}" required>
-                </div>
-                <div>
-                    <label>New Password (leave blank to keep current)</label>
-                    <input type="password" name="new_password" placeholder="Enter new password">
-                </div>
-                <div>
-                    <label>Confirm New Password</label>
-                    <input type="password" name="confirm_password" placeholder="Confirm new password">
-                </div>
-            </div>
-            <button type="submit" class="btn-primary">Save Seller Credentials</button>
-        </form>
-    </div>
-
-    <!-- Admin & Help Center Notices / Refund Proof Requests -->
-    {% if notices or complaint_notices %}
-    <div class="checkout-form-box" style="margin-bottom: 24px; border-left: 4px solid #dc2626;">
-        <h3>Notices &amp; Refund Verification Requests</h3>
-
-        {% for n in notices %}
-        <div class="alert alert-warning" style="margin-bottom: 10px;">
-            <strong>From {{ n['sent_by'] }}:</strong> {{ n['message'] }}
-            <small style="display: block; opacity: 0.8;">{{ n['created_at'] }}</small>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      {% if category == 'blocked_popup' %}
+        <div id="blockedModal" style="position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+          <div style="background: #ffffff; padding: 24px 28px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);">
+            <h3 style="color: #dc2626; margin-top: 0; margin-bottom: 10px;">You Are Blocked</h3>
+            <p style="color: #334155; margin: 0 0 20px; line-height: 1.5;">{{ message }}</p>
+            <button type="button" onclick="document.getElementById('blockedModal').style.display='none'" style="background: #dc2626; color: #ffffff; border: none; padding: 10px 22px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+              OK
+            </button>
+          </div>
         </div>
-        {% endfor %}
-
-        {% for cn in complaint_notices %}
-        <div class="checkout-form-box" style="background: #f8fafc; margin-top: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <div>
-                    <strong>Complaint #{{ cn['id'] }}</strong>
-                    {% if cn['order_id'] %} | Order <strong>#{{ cn['order_id'] }}</strong>{% endif %}
-                    | Product: <strong>{{ cn['product_name'] or 'N/A' }}</strong>
-                </div>
-                <span class="status-badge">{{ cn['status'] }}</span>
-            </div>
-
-            {% if cn['seller_notice'] %}
-                <p style="margin: 8px 0;"><strong>Notice:</strong> {{ cn['seller_notice'] }}</p>
-            {% endif %}
-
-            {% if cn['refund_approved'] or cn['status'] in ('Awaiting Seller Refund Proof', 'Refund Proof Submitted') %}
-                <p style="margin: 8px 0; color: #991b1b;">
-                    <strong>Refund Verification Required:</strong> Enter your Refund UPI ID or Transaction Reference ID and send it to Admin for verification.
-                </p>
-                <form method="POST" action="{{ url_for('submit_seller_refund_proof', complaint_id=cn['id']) }}" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                    <input type="text"
-                           name="seller_refund_txn_id"
-                           value="{{ cn['seller_refund_txn_id'] or '' }}"
-                           required
-                           placeholder="Enter Refund UPI ID or Transaction ID..."
-                           style="margin: 0; flex: 1; min-width: 240px;">
-                    <button type="submit" class="btn-update">
-                        {{ 'Update & Send to Admin' if cn['seller_refund_txn_id'] else 'Send to Admin' }}
-                    </button>
-                </form>
-                {% if cn['seller_refund_txn_id'] %}
-                    <small style="display: block; margin-top: 6px; color: #166534;">
-                        Sent to Admin: <code>{{ cn['seller_refund_txn_id'] }}</code> —
-                        <strong>{{ 'Verified by Admin' if cn['refund_verified'] else 'Pending Admin Verification' }}</strong>
-                    </small>
-                {% endif %}
-            {% endif %}
+      {% else %}
+        <div class="container" style="margin-bottom: 0; padding-bottom: 0;">
+          <div class="flash-msg flash-{{ category }}">{{ message }}</div>
         </div>
-        {% endfor %}
-    </div>
+      {% endif %}
+    {% endfor %}
+  {% endwith %}
+
+  <div class="container">
+    {% if seller['is_blocked'] %}
+      <div class="flash-msg flash-danger">Your seller account is currently blocked by Admin. You cannot add, edit, or manage products and orders.</div>
     {% endif %}
 
-    <!-- Online Payment QR Scanner Upload -->
-    <div class="checkout-form-box" style="margin-bottom: 24px;">
-        <h3>Online Payment QR Scanner</h3>
-        <form method="POST" action="{{ url_for('upload_seller_qr') }}" enctype="multipart/form-data" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-            <input type="file" name="qr_code" accept="image/*" required style="margin: 0;">
-            <button type="submit" class="btn-primary">{{ 'Update QR Scanner' if seller['qr_code'] else 'Upload QR Scanner' }}</button>
-        </form>
-        {% if seller['qr_code'] %}
-            <div style="margin-top: 12px;">
-                <small style="display: block; margin-bottom: 6px;">Active QR Scanner:</small>
-                <img src="{{ url_for('static', filename='images/' + seller['qr_code']) }}" alt="Seller QR Code" style="max-width: 150px; border-radius: 8px; border: 1px solid #cbd5e1;">
-            </div>
-        {% else %}
-            <small style="display: block; margin-top: 8px; color: #b91c1c;">Upload your QR scanner before adding products.</small>
-        {% endif %}
-    </div>
+    <!-- Payment QR Upload -->
+    <section class="panel">
+      <h2>Online Payment QR Scanner</h2>
+      <form action="{{ url_for('upload_seller_qr') }}" method="POST" enctype="multipart/form-data" class="inline-form">
+        <input type="file" name="qr_code" accept="image/*" required>
+        <button type="submit" class="btn-primary">Upload / Update QR Code</button>
+      </form>
+      {% if seller['qr_code'] %}
+        <div style="margin-top: 12px;">
+          <img src="{{ url_for('static', filename='images/' + seller['qr_code']) }}" alt="Seller QR" style="max-width: 140px; border-radius: 8px; border: 1px solid #cbd5e1;">
+        </div>
+      {% else %}
+        <p style="color: #dc2626; font-size: 0.9rem; margin-bottom: 0;">Upload your QR scanner image before adding products.</p>
+      {% endif %}
+    </section>
 
-    <!-- Add New Product -->
-    <div class="checkout-form-box" style="margin-bottom: 28px;">
-        <h3>Add New Product</h3>
-        <form method="POST" action="{{ url_for('add_product') }}" enctype="multipart/form-data">
-            <div class="seller-form-grid">
-                <div>
-                    <label>Product Name</label>
-                    <input type="text" name="name" required placeholder="e.g., Wireless Mouse">
-                </div>
-                <div>
-                    <label>Category</label>
-                    <input type="text" name="category" required placeholder="e.g., Electronics">
-                </div>
-                <div>
-                    <label>Price (₹)</label>
-                    <input type="number" step="0.01" min="1" name="price" required placeholder="499.00">
-                </div>
-                <div>
-                    <label>Stock Quantity</label>
-                    <input type="number" min="0" name="stock_qty" value="10" required>
-                </div>
-                <div class="full-width">
-                    <label>Product Image</label>
-                    <input type="file" name="image" accept="image/*">
-                </div>
-                <div class="full-width">
-                    <label>Description</label>
-                    <textarea name="description" rows="2" placeholder="Describe your product..."></textarea>
-                </div>
-            </div>
-            <button type="submit" class="btn-primary">Add Product</button>
-        </form>
-    </div>
+    <!-- Add Product -->
+    <section class="panel">
+      <h2>Add New Product</h2>
+      <form action="{{ url_for('add_product') }}" method="POST" enctype="multipart/form-data" style="display: grid; gap: 10px;">
+        <div class="inline-form">
+          <input type="text" name="name" placeholder="Product Name" required>
+          <input type="text" name="category" placeholder="Category (e.g., Electronics)" required>
+          <input type="number" step="0.01" min="0" name="price" placeholder="Price (₹)" required>
+          <input type="number" min="0" name="stock_qty" placeholder="Stock Qty" value="10" required>
+          <input type="file" name="image" accept="image/*">
+        </div>
+        <textarea name="description" rows="2" placeholder="About the product / description..." style="width: 100%;"></textarea>
+        <button type="submit" class="btn-success" style="width: fit-content;">Add Product</button>
+      </form>
+    </section>
 
     <!-- My Products -->
-    <div class="admin-orders-section" style="margin-top: 0;">
-        <h3>My Products ({{ products|length }})</h3>
-        {% if products %}
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Image</th>
-                        <th>Product</th>
-                        <th>Category</th>
-                        <th>Price</th>
-                        <th>Stock</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in products %}
-                    <tr>
-                        <td><strong>#{{ p['id'] }}</strong></td>
-                        <td>
-                            <img src="{{ url_for('static', filename='images/' + (p['image'] or 'placeholder.png')) }}"
-                                 alt="{{ p['name'] }}" class="seller-product-thumb">
-                        </td>
-                        <td><strong>{{ p['name'] }}</strong><br><small>{{ p['description'] }}</small></td>
-                        <td>{{ p['category'] }}</td>
-                        <td><strong>₹{{ "%.2f"|format(p['price']) }}</strong></td>
-                        <td>
-                            <form method="POST" action="{{ url_for('update_stock', product_id=p['id']) }}" style="display: flex; gap: 6px; align-items: center; margin: 0;">
-                                <input type="number" name="stock_qty" min="0" value="{{ p['stock_qty'] if p['stock_qty'] is not none else 0 }}" style="width: 75px; margin: 0; padding: 5px 8px;">
-                                <button type="submit" class="btn-update">Update</button>
-                            </form>
-                        </td>
-                        <td>
-                            <form method="POST" action="{{ url_for('delete_product', product_id=p['id']) }}" style="margin: 0;">
-                                <button type="submit" class="btn-delete-sm">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <div class="empty-state"><p>No products listed yet.</p></div>
-        {% endif %}
-    </div>
+    <section class="panel">
+      <h2>My Products ({{ products|length }})</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Product & About</th>
+            <th>Category & Price</th>
+            <th>Stock, Edit & Delete</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in products %}
+          <tr>
+            <td>#{{ p['id'] }}</td>
+            <td>
+              <strong>{{ p['name'] }}</strong>
+              {% if p['description'] %}
+                <br><small style="color: #475569;">About: {{ p['description'] }}</small>
+              {% endif %}
+            </td>
+            <td>{{ p['category'] }} — ₹{{ '%.2f'|format(p['price']) }}</td>
+            <td>
+              <div class="inline-form">
+                <form action="{{ url_for('update_stock', product_id=p['id']) }}" method="POST" class="inline-form" style="margin:0;">
+                  <input type="number" name="stock_qty" value="{{ p['stock_qty'] }}" min="0" style="width: 80px;">
+                  <button type="submit" class="btn-primary">Stock</button>
+                </form>
 
-    <!-- Orders Containing Seller Items & Seller Invoice Copy -->
-    <div class="admin-orders-section">
-        <h3>My Orders &amp; Invoice Copies</h3>
-        {% if orders %}
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Order #</th>
-                        <th>Customer</th>
-                        <th>My Items</th>
-                        <th>Order Total &amp; Payment</th>
-                        <th>Status</th>
-                        <th>Update &amp; Invoice</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for entry in orders %}
-                    <tr>
-                        <td><strong>#{{ entry['info']['id'] }}</strong><br><small>{{ entry['info']['created_at'] }}</small></td>
-                        <td><strong>{{ entry['info']['customer_name'] }}</strong><br><small>{{ entry['info']['phone'] }}</small></td>
-                        <td>
-                            {% for item in entry['items'] %}
-                                <div>{{ item['product_name'] }} (x{{ item['quantity'] }}) — ₹{{ "%.2f"|format(item['price'] * item['quantity']) }}</div>
-                            {% endfor %}
-                        </td>
-                        <td>
-                            <strong>₹{{ "%.2f"|format(entry['info']['total_price']) }}</strong><br>
-                            <small>{{ entry['info']['payment_method'] }} ({{ entry['info']['payment_status'] }})</small>
-                        </td>
-                        <td><span class="status-badge">{{ entry['info']['status'] }}</span></td>
-                        <td>
-                            <form method="POST" action="{{ url_for('update_order_status', order_id=entry['info']['id']) }}" style="display: flex; flex-direction: column; gap: 6px;">
-                                <select name="status" style="margin: 0;">
-                                    {% for status in statuses %}
-                                        <option value="{{ status }}" {% if entry['info']['status'] == status %}selected{% endif %}>{{ status }}</option>
-                                    {% endfor %}
-                                </select>
-                                <select name="payment_status" style="margin: 0;">
-                                    {% for p_stat in payment_statuses %}
-                                        <option value="{{ p_stat }}" {% if (entry['info']['payment_status'] or 'COD') == p_stat %}selected{% endif %}>{{ p_stat }}</option>
-                                    {% endfor %}
-                                </select>
-                                <button type="submit" class="btn-update">Save</button>
-                            </form>
-                            {% if entry['info']['status'] in ('Shipped', 'Out for Delivery', 'Delivered') %}
-                                <div style="margin-top: 6px;">
-                                    <a href="{{ url_for('view_seller_invoice', order_id=entry['info']['id']) }}" class="btn-primary" style="display: block; text-align: center;">
-                                        Seller Invoice Copy
-                                    </a>
-                                </div>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <div class="empty-state"><p>No orders for your products yet.</p></div>
+                <button type="button" class="btn-warning" onclick="toggleSellerEditProduct({{ p['id'] }})">Edit</button>
+
+                <form action="{{ url_for('delete_product', product_id=p['id']) }}" method="POST" style="margin:0;" onsubmit="return confirm('Delete product {{ p['name'] }}?');">
+                  <button type="submit" class="btn-danger">Delete</button>
+                </form>
+              </div>
+
+              <div id="seller-edit-product-{{ p['id'] }}" class="edit-box">
+                <form action="{{ url_for('edit_product', product_id=p['id']) }}" method="POST" enctype="multipart/form-data">
+                  <div class="inline-form" style="margin-bottom: 8px;">
+                    <input type="text" name="name" value="{{ p['name'] }}" placeholder="Product Name" required>
+                    <input type="text" name="category" value="{{ p['category'] }}" placeholder="Category" required>
+                    <input type="number" step="0.01" min="0" name="price" value="{{ '%.2f'|format(p['price']) }}" placeholder="Price" style="width: 110px;" required>
+                    <input type="number" min="0" name="stock_qty" value="{{ p['stock_qty'] }}" placeholder="Stock" style="width: 90px;" required>
+                  </div>
+                  <div style="margin-bottom: 8px;">
+                    <textarea name="description" rows="2" placeholder="About the product / description..." style="width: 100%;">{{ p['description'] or '' }}</textarea>
+                  </div>
+                  <div class="inline-form">
+                    <input type="file" name="image" accept="image/*">
+                    <button type="submit" class="btn-success">Save Product Changes</button>
+                    <button type="button" onclick="toggleSellerEditProduct({{ p['id'] }})" style="padding: 6px 12px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; cursor: pointer;">Cancel</button>
+                  </div>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4">No products listed yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Seller's Customer Orders -->
+    <section class="panel">
+      <h2>My Orders ({{ orders|length }})</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Customer & Address</th>
+            <th>My Items & Payment</th>
+            <th>Status & Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders %}
+          {% set info = o['info'] %}
+          <tr>
+            <td>
+              #{{ info['id'] }}<br>
+              <a href="{{ url_for('track_order', order_id=info['id']) }}" class="btn-track" style="display:inline-block; margin-top:6px;">Track</a>
+            </td>
+            <td>
+              <strong>{{ info['customer_name'] }}</strong><br>
+              Phone: {{ info['phone'] }}<br>
+              <small>{{ info['address'] }}</small>
+            </td>
+            <td>
+              {% for item in o['items'] %}
+                <div>{{ item['product_name'] }} × {{ item['quantity'] }} (₹{{ '%.2f'|format(item['price']) }})</div>
+              {% endfor %}
+              {% if o['seller_total'] is defined %}
+                <div><strong>Your Items Total: ₹{{ '%.2f'|format(o['seller_total']) }}</strong></div>
+              {% endif %}
+              <small>Method: {{ info['payment_method'] }}</small>
+              {% if info['payer_upi_id'] and info['payer_upi_id'] != 'COD' %}
+                <br><small>UPI ID: <strong>{{ info['payer_upi_id'] }}</strong> | Ref: <strong>{{ info['transaction_id'] }}</strong></small>
+              {% endif %}
+            </td>
+            <td>
+              <form action="{{ url_for('update_order_status', order_id=info['id']) }}" method="POST" class="inline-form">
+                <select name="status">
+                  {% for st in statuses %}
+                    <option value="{{ st }}" {% if info['status'] == st %}selected{% endif %}>{{ st }}</option>
+                  {% endfor %}
+                </select>
+                <select name="payment_status">
+                  {% for ps in payment_statuses %}
+                    <option value="{{ ps }}" {% if info['payment_status'] == ps %}selected{% endif %}>{{ ps }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn-success">Update</button>
+                {% if info['status'] in invoice_statuses %}
+                  <a href="{{ url_for('view_seller_invoice', order_id=info['id']) }}">Invoice</a>
+                {% endif %}
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4">No orders for your products yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Refund Requests & Admin Notices -->
+    <section class="panel">
+      <h2>Refund Proofs & Admin Notices</h2>
+      {% for comp in complaint_notices %}
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+          <strong>Complaint #{{ comp['id'] }} — {{ comp['subject'] }}</strong> [{{ comp['status'] }}]<br>
+          <small>{{ comp['seller_notice'] or comp['message'] }}</small>
+          <form action="{{ url_for('submit_seller_refund_proof', complaint_id=comp['id']) }}" method="POST" class="inline-form" style="margin-top: 8px;">
+            <input type="text" name="seller_refund_txn_id" value="{{ comp['seller_refund_txn_id'] or '' }}" placeholder="Enter Refund UPI / Transaction Ref ID" required>
+            <button type="submit" class="btn-primary">Submit Refund Proof</button>
+          </form>
+        </div>
+      {% endfor %}
+
+      {% for n in notices %}
+        <div style="border-top: 1px solid #e2e8f0; padding: 8px 0; font-size: 0.9rem;">
+          <strong>From {{ n['sent_by'] }}:</strong> {{ n['message'] }} <small style="color:#64748b;">({{ n['created_at'] }})</small>
+        </div>
+      {% else %}
+        {% if not complaint_notices %}
+          <p style="color: #64748b;">No notices or refund requests.</p>
         {% endif %}
-    </div>
-</div>
-{% endblock %}
+      {% endfor %}
+    </section>
+
+    <!-- Seller Account Settings -->
+    <section class="panel">
+      <h2>Seller Profile & Password</h2>
+      <form action="{{ url_for('update_seller_profile', seller_id=seller['id']) }}" method="POST" class="inline-form">
+        <input type="text" name="name" value="{{ seller['name'] }}" placeholder="Store / Seller Name" required>
+        <input type="text" name="user_id_login" value="{{ seller['email'] }}" placeholder="Seller User ID" required>
+        <input type="password" name="new_password" placeholder="New Password (optional)">
+        <input type="password" name="confirm_password" placeholder="Confirm Password">
+        <button type="submit" class="btn-primary">Update Profile</button>
+      </form>
+    </section>
+  </div>
+
+  <script>
+    function toggleSellerEditProduct(productId) {
+      const box = document.getElementById('seller-edit-product-' + productId);
+      if (!box) return;
+      box.style.display = (box.style.display === 'block') ? 'none' : 'block';
+    }
+  </script>
+</body>
+</html>
