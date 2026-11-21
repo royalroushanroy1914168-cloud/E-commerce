@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="seller-header-banner">
+        <div>
+            <h2>Help Desk Dashboard — {{ session.get('user_name') }}</h2>
+            <p>Review incoming complaints first. Solve directly, close completed cases (auto-deleted after 6 days), or escalate unsolved / refund cases to Master Admin.</p>
+        </div>
+        <a href="{{ url_for('index') }}" class="btn-secondary">Storefront</a>
+    </div>
+
+    {% if complaints %}
+        {% for c in complaints %}
+        <div class="checkout-form-box" style="margin-bottom: 20px; border-left: 4px solid {{ '#dc2626' if c['escalated_to_admin'] else '#2563eb' }};">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <span class="user-badge" style="margin-right: 6px;">{{ c['complaint_type'] or 'Product Issue Complaint' }}</span>
+                    <strong style="font-size: 17px;">Complaint #{{ c['id'] }}: {{ c['subject'] }}</strong><br>
+                    <small>
+                        Customer: <strong>{{ c['customer_name'] }}</strong> |
+                        Order #: <strong>{{ '#' ~ c['order_id'] if c['order_id'] else 'N/A' }}</strong> |
+                        Product: <strong>{{ c['product_name'] or 'N/A' }}</strong> |
+                        Seller: <strong>{{ c['seller_name'] or 'N/A' }}</strong>
+                    </small>
+                </div>
+                <span class="status-badge">{{ c['status'] }}</span>
+            </div>
+
+            <p style="margin: 12px 0; background: #f8fafc; padding: 12px; border-radius: 6px;">{{ c['message'] }}</p>
+
+            {% if c['status'] == 'Closed' %}
+                <div class="alert alert-info" style="margin-bottom: 12px;">
+                    <strong>Case Closed:</strong> This complaint is closed and will be automatically deleted 6 days after closure.
+                </div>
+            {% endif %}
+
+            {% if c['admin_solution'] %}
+                <div class="alert alert-success" style="margin-bottom: 12px;">
+                    <strong>Admin Final Resolution:</strong> {{ c['admin_solution'] }}
+                </div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('help_center_respond', complaint_id=c['id']) }}">
+                <label>Help Desk Reply to Customer</label>
+                <textarea name="help_reply" rows="2" placeholder="Write solution or update for the customer...">{{ c['help_reply'] or '' }}</textarea>
+
+                <label>Notice to Seller (optional, for faulty/misleading product)</label>
+                <input type="text" name="seller_notice" value="{{ c['seller_notice'] or '' }}" placeholder="Enter notice message to send to the seller...">
+
+                <label>Escalation Note for Admin (if Help Desk cannot solve or refund is needed)</label>
+                <input type="text" name="escalation_note" value="{{ c['escalation_note'] or '' }}" placeholder="Explain why Admin refund/intervention is required...">
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="submit" name="action" value="solve" class="btn-update">Resolve &amp; Send Reply</button>
+                    <button type="submit" name="action" value="close" class="btn-primary" style="padding: 9px 15px; font-size: 14px;">
+                        Close Case (Auto-Delete in 6 Days)
+                    </button>
+                    <button type="submit" name="action" value="escalate" class="btn-delete-sm" style="padding: 9px 15px; font-size: 14px;">
+                        Cannot Solve &rarr; Escalate to Admin (Refund / Solution)
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state"><p>No customer complaints submitted yet.</p></div>
+    {% endif %}
+</div>
+{% endblock %}

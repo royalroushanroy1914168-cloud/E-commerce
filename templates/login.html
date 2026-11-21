@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="auth-card">
+    <h2>Login to ShopEase</h2>
+    <form method="POST">
+        <div class="role-selector" style="grid-template-columns: repeat(3, 1fr);">
+            <label class="role-option">
+                <input type="radio" name="login_type" value="customer" checked>
+                <span>Customer</span>
+            </label>
+            <label class="role-option">
+                <input type="radio" name="login_type" value="seller">
+                <span>Seller / Admin</span>
+            </label>
+            <label class="role-option">
+                <input type="radio" name="login_type" value="helpdesk">
+                <span>Help Center</span>
+            </label>
+        </div>
+
+        <label for="email">Email / Username / Help Center ID</label>
+        <input type="text" id="email" name="email" required placeholder="Enter your email, seller username, or Help Center ID">
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required placeholder="Enter your password">
+
+        <button type="submit" class="btn-primary btn-full">Login</button>
+    </form>
+    <p class="auth-switch">New to ShopEase? <a href="{{ url_for('register') }}">Create an account</a></p>
+</div>
+{% endblock %}

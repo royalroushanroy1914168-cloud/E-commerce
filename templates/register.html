@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="auth-container">
+    <h2>Create ShopEase Account</h2>
+    <form method="POST" onsubmit="return validateRegisterForm()">
+        <label>Select Account Type</label>
+        <div class="role-selector">
+            <label class="role-option">
+                <input type="radio" name="role" value="customer" checked onclick="updateRegisterFields('customer')">
+                <span>Customer</span>
+            </label>
+            <label class="role-option">
+                <input type="radio" name="role" value="seller" onclick="updateRegisterFields('seller')">
+                <span>Seller</span>
+            </label>
+        </div>
+
+        <label for="name" id="name-label">Full Name</label>
+        <input type="text" id="name" name="name" required placeholder="Enter your full name">
+
+        <label for="email" id="identifier-label">Email Address</label>
+        <input type="email" id="email" name="email" required placeholder="you@example.com">
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required minlength="4" placeholder="Create a password">
+
+        <label for="confirm_password">Confirm Password</label>
+        <input type="password" id="confirm_password" name="confirm_password" required placeholder="Re-enter your password">
+
+        <button type="submit" class="btn-primary btn-full">Create Account</button>
+    </form>
+    <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
+</div>
+
+<script>
+function updateRegisterFields(role) {
+    const nameLabel = document.getElementById('name-label');
+    const nameInput = document.getElementById('name');
+    const idLabel = document.getElementById('identifier-label');
+    const idInput = document.getElementById('email');
+
+    if (role === 'seller') {
+        nameLabel.textContent = 'Store / Seller Name';
+        nameInput.placeholder = 'Enter your store or seller name';
+        idLabel.textContent = 'Seller Username';
+        idInput.type = 'text';
+        idInput.placeholder = 'Choose a seller username (e.g., sell2)';
+    } else {
+        nameLabel.textContent = 'Full Name';
+        nameInput.placeholder = 'Enter your full name';
+        idLabel.textContent = 'Email Address';
+        idInput.type = 'email';
+        idInput.placeholder = 'you@example.com';
+    }
+}
+
+function validateRegisterForm() {
+    const pass = document.getElementById('password').value;
+    const confirm = document.getElementById('confirm_password').value;
+    if (pass !== confirm) {
+        alert('Passwords do not match. Please try again.');
+        return false;
+    }
+    return true;
+}
+</script>
+{% endblock %}

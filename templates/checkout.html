@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Checkout</h2>
+    <div class="checkout-wrapper">
+        <!-- Order Summary -->
+        <div class="checkout-summary">
+            <h3>Order Summary</h3>
+            <ul class="summary-list">
+                {% for pid, item in cart.items() %}
+                    <li>
+                        <span>{{ item['name'] }} &times; {{ item['quantity'] }}</span>
+                        <strong>₹{{ "%.2f"|format(item['price'] * item['quantity']) }}</strong>
+                    </li>
+                {% endfor %}
+            </ul>
+            <hr>
+            <div class="summary-total">
+                <span>Total Payable:</span>
+                <strong>₹{{ "%.2f"|format(total_price) }}</strong>
+            </div>
+            <a href="{{ url_for('view_cart') }}" class="back-link">&larr; Edit Cart</a>
+        </div>
+
+        <!-- Delivery & Payment Details -->
+        <div class="checkout-form-box">
+            <h3>Delivery & Payment Details</h3>
+            <form method="POST">
+                <label for="customer_name">Full Name</label>
+                <input type="text" id="customer_name" name="customer_name" value="{{ session.get('user_name', '') }}" required>
+
+                <label for="address">Delivery Address</label>
+                <textarea id="address" name="address" rows="3" required placeholder="House/Hostel No., Street, City, Pincode"></textarea>
+
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" name="phone" required placeholder="10-digit mobile number">
+
+                <label style="display: block; font-weight: 600; margin-bottom: 8px;">Select Payment Method</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px;">
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 12px; border: 2px solid #2563eb; background: #eff6ff; border-radius: 8px; cursor: pointer; font-weight: 600;" id="cod-card">
+                        <input type="radio" name="payment_method" value="Cash on Delivery" checked onchange="togglePaymentMethod('cod')" style="width: auto; margin: 0;">
+                        <span>Cash on Delivery (COD)</span>
+                    </label>
+
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 12px; border: 2px solid #d1d5db; background: #f9fafb; border-radius: 8px; cursor: pointer; font-weight: 600;" id="online-card">
+                        <input type="radio" name="payment_method" value="Online QR Payment" onchange="togglePaymentMethod('online')" style="width: auto; margin: 0;">
+                        <span>Online Payment (QR Code)</span>
+                    </label>
+                </div>
+
+                <!-- Seller QR Scanner Box (Shown when Online Payment is selected) -->
+                <div id="qr-payment-box" style="display: none; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                    <h4 style="margin-bottom: 8px; color: #1d4ed8;">Scan Seller QR Code to Pay ₹{{ "%.2f"|format(total_price) }}</h4>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; margin: 12px 0;">
+                        {% if seller_qrs %}
+                            {% for s in seller_qrs %}
+                                <div style="text-align: center; background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                    <p style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">Seller: {{ s['name'] }}</p>
+                                    {% if s['qr_code'] %}
+                                        <img src="{{ url_for('static', filename='images/' + s['qr_code']) }}"
+                                             alt="{{ s['name'] }} QR Scanner"
+                                             style="width: 180px; height: 180px; object-fit: contain; border: 1px solid #e5e7eb; border-radius: 6px;">
+                                    {% else %}
+                                        <p style="font-size: 12px; color: #dc2626; max-width: 180px; padding: 20px 0;">
+                                            Seller has not uploaded a QR scanner yet. Please select Cash on Delivery.
+                                        </p>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p style="font-size: 13px; color: #dc2626;">
+                                No seller QR scanner found for this cart. Please select Cash on Delivery.
+                            </p>
+                        {% endif %}
+                    </div>
+
+                    <label for="transaction_id">UPI / Payment Transaction ID</label>
+                    <input type="text" id="transaction_id" name="transaction_id" placeholder="Enter UPI Transaction / Reference ID">
+                </div>
+
+                <button type="submit" class="btn-primary btn-full">Place Order</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePaymentMethod(mode) {
+    const qrBox = document.getElementById('qr-payment-box');
+    const txnInput = document.getElementById('transaction_id');
+    const codCard = document.getElementById('cod-card');
+    const onlineCard = document.getElementById('online-card');
+
+    if (mode === 'online') {
+        qrBox.style.display = 'block';
+        txnInput.required = true;
+        onlineCard.style.borderColor = '#2563eb';
+        onlineCard.style.background = '#eff6ff';
+        codCard.style.borderColor = '#d1d5db';
+        codCard.style.background = '#f9fafb';
+    } else {
+        qrBox.style.display = 'none';
+        txnInput.required = false;
+        txnInput.value = '';
+        codCard.style.borderColor = '#2563eb';
+        codCard.style.background = '#eff6ff';
+        onlineCard.style.borderColor = '#d1d5db';
+        onlineCard.style.background = '#f9fafb';
+    }
+}
+</script>
+{% endblock %}
