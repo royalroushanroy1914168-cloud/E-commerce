@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<<<<<<< HEAD
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Roy Mart – Smart Shopping Store{% endblock %}</title>
@@ -45,6 +44,11 @@
       align-items: center;
       flex-wrap: wrap;
     }
+    .user-badge {
+      font-size: 13px;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
     .flash-wrap {
       max-width: 1180px;
       margin: 16px auto 0;
@@ -74,57 +78,22 @@
       <a href="{{ url_for('track_order') }}">Track Order</a>
       {% if session.get('user_id') %}
         {% if session.get('role') == 'seller' and session.get('user_email') == 'sell1' %}
-          <a href="{{ url_for('admin_dashboard') }}">Admin Panel</a>
+          <a href="{{ url_for('admin_dashboard') }}">Master Admin (sell1)</a>
         {% elif session.get('role') == 'seller' %}
-          <a href="{{ url_for('seller_dashboard', seller_id=session.get('user_id')) }}">Seller Panel</a>
+          <a href="{{ url_for('seller_dashboard', seller_id=session.get('user_id')) }}">Seller Dashboard #{{ session.get('user_id') }}</a>
         {% elif session.get('role') == 'helpdesk' %}
-          <a href="{{ url_for('help_center_dashboard') }}">Help Desk</a>
+          <a href="{{ url_for('help_center_dashboard') }}">Help Center</a>
         {% else %}
-          <a href="{{ url_for('customer_dashboard', user_id=session.get('user_id')) }}">My Account</a>
+          <a href="{{ url_for('customer_dashboard', user_id=session.get('user_id')) }}">Customer Dashboard #{{ session.get('user_id') }}</a>
+        {% endif %}
+        {% if session.get('user_name') %}
+          <span class="user-badge">{{ session.get('user_name') }}</span>
         {% endif %}
         <a href="{{ url_for('logout') }}">Logout</a>
       {% else %}
         <a href="{{ url_for('login') }}">Login</a>
         <a href="{{ url_for('register') }}">Register</a>
       {% endif %}
-=======
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roy Mart — Smart Shopping Store</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-    <nav class="navbar">
-        <div class="nav-container">
-            <a href="{{ url_for('index') }}" class="nav-brand">Roy Mart</a>
-            <div class="nav-links">
-                <a href="{{ url_for('index') }}">Store</a>
-                <a href="{{ url_for('view_cart') }}">Cart ({{ session.get('cart')|length if session.get('cart') else 0 }})</a>
-                <a href="{{ url_for('track_order') }}">Track Order</a>
-
-                {% if session.get('user_id') %}
-                    {% if session.get('user_email') == 'sell1' %}
-                        <a href="{{ url_for('admin_dashboard') }}">Master Admin (sell1)</a>
-                    {% elif session.get('role') == 'seller' %}
-                        <a href="{{ url_for('seller_dashboard', seller_id=session.get('user_id')) }}">
-                            Seller Dashboard #{{ session.get('user_id') }}
-                        </a>
-                    {% elif session.get('role') == 'helpdesk' %}
-                        <a href="{{ url_for('help_center_dashboard') }}">Help Center</a>
-                    {% else %}
-                        <a href="{{ url_for('customer_dashboard', user_id=session.get('user_id')) }}">
-                            Customer Dashboard #{{ session.get('user_id') }}
-                        </a>
-                    {% endif %}
-                    <span class="user-badge">{{ session.get('user_name') }}</span>
-                    <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
-                {% else %}
-                    <a href="{{ url_for('login') }}">Login</a>
-                    <a href="{{ url_for('register') }}">Register</a>
-                {% endif %}
-            </div>
-        </div>
->>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
     </nav>
   </header>
 
