@@ -65,6 +65,10 @@ def get_db():
 
 
 def cleanup_expired_closed_complaints(conn):
+<<<<<<< HEAD
+=======
+  """Automatically deletes any closed complaint 6 days after its closure timestamp."""
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
   conn.execute(
       """DELETE FROM complaints
            WHERE status = 'Closed'
@@ -95,8 +99,11 @@ def init_db():
   ]
   if 'qr_code' not in user_cols:
     cursor.execute("ALTER TABLE users ADD COLUMN qr_code TEXT")
+<<<<<<< HEAD
   if 'is_blocked' not in user_cols:
     cursor.execute("ALTER TABLE users ADD COLUMN is_blocked INTEGER DEFAULT 0")
+=======
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
 
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS products (
@@ -157,8 +164,11 @@ def init_db():
         "ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT 'Cash on"
         " Delivery'"
     )
+<<<<<<< HEAD
   if 'payer_upi_id' not in order_cols:
     cursor.execute("ALTER TABLE orders ADD COLUMN payer_upi_id TEXT")
+=======
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
   if 'transaction_id' not in order_cols:
     cursor.execute("ALTER TABLE orders ADD COLUMN transaction_id TEXT")
   if 'payment_status' not in order_cols:
@@ -355,6 +365,7 @@ def get_user_dashboard_url():
     return url_for('seller_dashboard', seller_id=session['user_id'])
   if role == 'helpdesk':
     return url_for('help_center_dashboard')
+<<<<<<< HEAD
   if role == 'customer' and 'user_id' in session:
     return url_for('customer_dashboard', user_id=session['user_id'])
   return url_for('index')
@@ -383,6 +394,9 @@ def is_current_seller_blocked():
   ).fetchone()
   conn.close()
   return bool(row and row['is_blocked'])
+=======
+  return url_for('customer_dashboard', user_id=session['user_id'])
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
 
 
 def customer_required(f):
@@ -517,6 +531,10 @@ def run_ai_search(conn, query_text):
 
 
 def generate_system_invoice_number(order_id, created_at=None, prefix='INV'):
+<<<<<<< HEAD
+=======
+  """Generates a system invoice number using order date and order ID."""
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
   date_part = datetime.now().strftime('%Y%m%d')
   if created_at:
     digits = ''.join(ch for ch in str(created_at) if ch.isdigit())
@@ -546,7 +564,11 @@ def build_invoice_pdf_bytes(order, items):
   pdf.cell(
       0,
       10,
+<<<<<<< HEAD
       _pdf_safe_text('ROY MART - TAX / ORDER INVOICE'),
+=======
+      _pdf_safe_text('TAX / ORDER INVOICE'),
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
       new_x='LMARGIN',
       new_y='NEXT',
   )
@@ -780,6 +802,7 @@ def view_cart():
 
 @app.route('/cart/add/<int:product_id>')
 def add_to_cart(product_id):
+<<<<<<< HEAD
   if is_current_customer_blocked():
     flash('You are blocked by Admin and cannot order anything.', 'blocked_popup')
     return redirect(request.referrer or url_for('index'))
@@ -801,6 +824,25 @@ def add_to_cart(product_id):
     flash(f"Sorry, '{product['name']}' is currently out of stock.", 'danger')
     return redirect(request.referrer or url_for('index'))
 
+=======
+  conn = get_db()
+  product = conn.execute(
+      'SELECT * FROM products WHERE id = ?', (product_id,)
+  ).fetchone()
+  conn.close()
+
+  if not product:
+    flash('Product not found.', 'danger')
+    return redirect(url_for('index'))
+
+  available_stock = (
+      product['stock_qty'] if product['stock_qty'] is not None else 0
+  )
+  if available_stock <= 0:
+    flash(f"Sorry, '{product['name']}' is currently out of stock.", 'danger')
+    return redirect(request.referrer or url_for('index'))
+
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
   cart = session.get('cart', {})
   pid = str(product_id)
   current_qty = cart[pid]['quantity'] if pid in cart else 0
@@ -832,9 +874,28 @@ def add_to_cart(product_id):
 
 @app.route('/cart/increase/<product_id>')
 def increase_qty(product_id):
+<<<<<<< HEAD
   if is_current_customer_blocked():
     flash('You are blocked by Admin and cannot order anything.', 'blocked_popup')
     return redirect(url_for('view_cart'))
+=======
+  cart = session.get('cart', {})
+  if product_id in cart:
+    conn = get_db()
+    prod = conn.execute(
+        'SELECT stock_qty FROM products WHERE id = ?', (int(product_id),)
+    ).fetchone()
+    conn.close()
+    max_stock = (
+        prod['stock_qty'] if (prod and prod['stock_qty'] is not None) else 0
+    )
+    if cart[product_id]['quantity'] + 1 > max_stock:
+      flash(f'Maximum available stock ({max_stock}) reached.', 'warning')
+    else:
+      cart[product_id]['quantity'] += 1
+      session['cart'] = cart
+  return redirect(url_for('view_cart'))
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
 
   cart = session.get('cart', {})
   if product_id in cart:
@@ -1266,6 +1327,7 @@ def submit_complaint():
 @app.route('/checkout', methods=['GET', 'POST'])
 @customer_required
 def checkout():
+<<<<<<< HEAD
   if is_current_customer_blocked():
     flash('You are blocked by Admin and cannot order anything.', 'blocked_popup')
     return redirect(url_for('view_cart'))
@@ -1434,11 +1496,115 @@ def checkout():
             (item['quantity'], prod_id),
         )
 
+=======
+  cart = session.get('cart', {})
+  if not cart:
+    flash('Your cart is empty.', 'warning')
+    return redirect(url_for('index'))
+
+  total_price = sum(item['price'] * item['quantity'] for item in cart.values())
+  seller_ids = {
+      item.get('seller_id') for item in cart.values() if item.get('seller_id')
+  }
+
+  conn = get_db()
+  seller_qrs = []
+  for sid in seller_ids:
+    s_row = conn.execute(
+        "SELECT id, name, qr_code FROM users WHERE id = ? AND role = 'seller'",
+        (sid,),
+    ).fetchone()
+    if s_row:
+      seller_qrs.append(s_row)
+
+  if request.method == 'POST':
+    customer_name = request.form['customer_name'].strip()
+    address = request.form['address'].strip()
+    phone = request.form['phone'].strip()
+    payment_method = request.form.get('payment_method', 'Cash on Delivery')
+    transaction_id = request.form.get('transaction_id', '').strip()
+
+    if payment_method == 'Online QR Payment' and not transaction_id:
+      conn.close()
+      flash(
+          'Please scan the QR code and enter your UPI / Transaction Reference'
+          ' ID.',
+          'danger',
+      )
+      return render_template(
+          'checkout.html',
+          cart=cart,
+          total_price=total_price,
+          seller_qrs=seller_qrs,
+      )
+
+    for pid, item in cart.items():
+      if pid.isdigit():
+        prod = conn.execute(
+            'SELECT stock_qty FROM products WHERE id = ?', (int(pid),)
+        ).fetchone()
+        if prod is None or (prod['stock_qty'] or 0) < item['quantity']:
+          conn.close()
+          flash(f"Insufficient stock for '{item['name']}'.", 'danger')
+          return redirect(url_for('view_cart'))
+
+    payment_status = (
+        'Pending Verification'
+        if payment_method == 'Online QR Payment'
+        else 'COD'
+    )
+    txn_value = (
+        transaction_id if payment_method == 'Online QR Payment' else 'COD'
+    )
+
+    cursor = conn.cursor()
+    cursor.execute(
+        """INSERT INTO orders (user_id, customer_name, address, phone, total_price, payment_method, transaction_id, payment_status, status)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Order Placed')""",
+        (
+            session['user_id'],
+            customer_name,
+            address,
+            phone,
+            total_price,
+            payment_method,
+            txn_value,
+            payment_status,
+        ),
+    )
+    order_id = cursor.lastrowid
+
+    for pid, item in cart.items():
+      prod_id = int(pid) if pid.isdigit() else None
+      cursor.execute(
+          """INSERT INTO order_items (order_id, product_id, seller_id, product_name, quantity, price)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+          (
+              order_id,
+              prod_id,
+              item.get('seller_id'),
+              item['name'],
+              item['quantity'],
+              item['price'],
+          ),
+      )
+      if prod_id is not None:
+        cursor.execute(
+            """UPDATE products SET stock_qty = MAX(0, stock_qty - ?)
+                       WHERE id = ?""",
+            (item['quantity'], prod_id),
+        )
+
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
     conn.commit()
     conn.close()
 
     session.pop('cart', None)
+<<<<<<< HEAD
     flash(f'Order booked! Your Order Number is #{order_id}.', 'success')
+=======
+    flash(f'Order placed! Your Order Number is #{order_id}.', 'success')
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
     return redirect(url_for('track_order', order_id=order_id))
 
   conn.close()
@@ -1501,6 +1667,7 @@ def my_orders():
 
 @app.route('/track', methods=['GET', 'POST'])
 def track_order():
+<<<<<<< HEAD
   if 'user_id' not in session:
     flash('Please log in to track your order.', 'warning')
     return redirect(url_for('login', next=request.full_path))
@@ -1561,6 +1728,29 @@ def track_order():
     else:
       flash('Please enter a valid numeric Order Number.', 'warning')
 
+=======
+  order_id = request.args.get('order_id') or request.form.get('order_id')
+  order = None
+  items = []
+
+  if order_id:
+    clean_id = str(order_id).replace('#', '').strip()
+    if clean_id.isdigit():
+      conn = get_db()
+      order = conn.execute(
+          'SELECT * FROM orders WHERE id = ?', (int(clean_id),)
+      ).fetchone()
+      if order:
+        items = conn.execute(
+            'SELECT * FROM order_items WHERE order_id = ?', (order['id'],)
+        ).fetchall()
+      else:
+        flash(f'No order found with Order Number #{clean_id}.', 'danger')
+      conn.close()
+    else:
+      flash('Please enter a valid numeric Order Number.', 'warning')
+
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
   return render_template(
       'tracking.html', order=order, items=items, statuses=ORDER_STATUSES
   )
@@ -1769,6 +1959,7 @@ def view_seller_invoice(order_id):
 @app.route('/seller/complaint/<int:complaint_id>/refund-proof', methods=['POST'])
 @seller_required
 def submit_seller_refund_proof(complaint_id):
+<<<<<<< HEAD
   if is_current_seller_blocked():
     flash(
         'You are blocked by Admin and cannot perform seller actions.',
@@ -1784,6 +1975,16 @@ def submit_seller_refund_proof(complaint_id):
     )
     return redirect(get_user_dashboard_url())
 
+=======
+  refund_txn_id = request.form.get('seller_refund_txn_id', '').strip()
+  if not refund_txn_id:
+    flash(
+        'Please enter a valid Refund UPI ID or Transaction Reference ID.',
+        'danger',
+    )
+    return redirect(get_user_dashboard_url())
+
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
   conn = get_db()
   comp = conn.execute(
       """SELECT * FROM complaints
@@ -1828,6 +2029,7 @@ def submit_seller_refund_proof(complaint_id):
 @app.route('/seller/upload-qr', methods=['POST'])
 @seller_required
 def upload_seller_qr():
+<<<<<<< HEAD
   if is_current_seller_blocked():
     flash(
         'You are blocked by Admin and cannot perform seller actions.',
@@ -1840,6 +2042,13 @@ def upload_seller_qr():
     flash('Please select a QR scanner image to upload.', 'warning')
     return redirect(get_user_dashboard_url())
 
+=======
+  qr_file = request.files.get('qr_code')
+  if not qr_file or not qr_file.filename:
+    flash('Please select a QR scanner image to upload.', 'warning')
+    return redirect(get_user_dashboard_url())
+
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
   safe_name = f"qr_seller_{session['user_id']}_{secure_filename(qr_file.filename)}"
   qr_file.save(os.path.join(UPLOAD_FOLDER, safe_name))
 
@@ -2011,6 +2220,7 @@ def admin_dashboard():
     """).fetchall()
 
   conn.close()
+<<<<<<< HEAD
 
   return render_template(
       'admin.html',
@@ -2121,6 +2331,24 @@ def toggle_block_seller(seller_id):
       'warning' if new_status == 1 else 'success',
   )
   return redirect(url_for('admin_dashboard'))
+=======
+
+  return render_template(
+      'admin.html',
+      admin_user=admin_user,
+      sellers=sellers,
+      seller_count=len(sellers),
+      customers=customers,
+      help_staff=help_staff,
+      products=products,
+      orders=all_orders,
+      complaints=complaints,
+      statuses=ORDER_STATUSES,
+      payment_statuses=PAYMENT_STATUSES,
+      complaint_statuses=COMPLAINT_STATUSES,
+      invoice_statuses=INVOICE_ELIGIBLE_STATUSES,
+  )
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
 
 
 @app.route('/admin/refund-invoice/<int:complaint_id>')
@@ -2483,6 +2711,7 @@ def admin_manage_complaint(complaint_id):
 @app.route('/seller/add-product', methods=['POST'])
 @seller_required
 def add_product():
+<<<<<<< HEAD
   if is_current_seller_blocked():
     flash(
         'You are blocked by Admin and cannot perform seller actions.',
@@ -2502,6 +2731,20 @@ def add_product():
     )
     return redirect(get_user_dashboard_url())
 
+=======
+  conn = get_db()
+  seller = conn.execute(
+      'SELECT qr_code FROM users WHERE id = ?', (session['user_id'],)
+  ).fetchone()
+  if not seller or not seller['qr_code']:
+    conn.close()
+    flash(
+        'Please upload your Online Payment QR Scanner before adding products.',
+        'danger',
+    )
+    return redirect(get_user_dashboard_url())
+
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
   name = request.form['name'].strip()
   category = request.form['category'].strip()
   price = float(request.form['price'])
@@ -2534,6 +2777,7 @@ def add_product():
   flash(f"Product '{name}' added.", 'success')
   return redirect(get_user_dashboard_url())
 
+<<<<<<< HEAD
 
 @app.route('/seller/edit-product/<int:product_id>', methods=['POST'])
 @seller_required
@@ -2604,16 +2848,38 @@ def edit_product(product_id):
   flash(f"Product '{name}' updated.", 'success')
   return redirect(get_user_dashboard_url())
 
+=======
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
 
 @app.route('/seller/update-stock/<int:product_id>', methods=['POST'])
 @seller_required
 def update_stock(product_id):
+<<<<<<< HEAD
   if is_current_seller_blocked():
     flash(
         'You are blocked by Admin and cannot perform seller actions.',
         'blocked_popup',
     )
     return redirect(get_user_dashboard_url())
+=======
+  new_stock = max(0, int(request.form.get('stock_qty', 0)))
+  conn = get_db()
+  if session.get('user_email') == 'sell1':
+    conn.execute(
+        'UPDATE products SET stock_qty = ? WHERE id = ?',
+        (new_stock, product_id),
+    )
+  else:
+    conn.execute(
+        'UPDATE products SET stock_qty = ? WHERE id = ? AND seller_id = ?',
+        (new_stock, product_id, session['user_id']),
+    )
+  conn.commit()
+  conn.close()
+
+  flash(f'Stock updated to {new_stock}.', 'success')
+  return redirect(get_user_dashboard_url())
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
 
   new_stock = max(0, int(request.form.get('stock_qty', 0)))
   conn = get_db()
@@ -2637,12 +2903,28 @@ def update_stock(product_id):
 @app.route('/seller/delete-product/<int:product_id>', methods=['POST'])
 @seller_required
 def delete_product(product_id):
+<<<<<<< HEAD
   if is_current_seller_blocked():
     flash(
         'You are blocked by Admin and cannot perform seller actions.',
         'blocked_popup',
     )
     return redirect(get_user_dashboard_url())
+=======
+  conn = get_db()
+  if session.get('user_email') == 'sell1':
+    conn.execute('DELETE FROM products WHERE id = ?', (product_id,))
+  else:
+    conn.execute(
+        'DELETE FROM products WHERE id = ? AND seller_id = ?',
+        (product_id, session['user_id']),
+    )
+  conn.commit()
+  conn.close()
+
+  flash('Product deleted.', 'info')
+  return redirect(get_user_dashboard_url())
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
 
   conn = get_db()
   if session.get('user_email') == 'sell1':
@@ -2662,12 +2944,49 @@ def delete_product(product_id):
 @app.route('/seller/update-status/<int:order_id>', methods=['POST'])
 @seller_required
 def update_order_status(order_id):
+<<<<<<< HEAD
   if is_current_seller_blocked():
     flash(
         'You are blocked by Admin and cannot perform seller actions.',
         'blocked_popup',
     )
     return redirect(get_user_dashboard_url())
+=======
+  new_status = request.form.get('status')
+  new_payment_status = request.form.get('payment_status')
+
+  conn = get_db()
+  current_order = conn.execute(
+      'SELECT status, payment_status FROM orders WHERE id = ?', (order_id,)
+  ).fetchone()
+  if current_order:
+    if new_status == 'Cancelled' and current_order['status'] != 'Cancelled':
+      items = conn.execute(
+          'SELECT product_id, quantity FROM order_items WHERE order_id = ?',
+          (order_id,),
+      ).fetchall()
+      for item in items:
+        if item['product_id'] is not None:
+          conn.execute(
+              'UPDATE products SET stock_qty = stock_qty + ? WHERE id = ?',
+              (item['quantity'], item['product_id']),
+          )
+
+    if new_status in ORDER_STATUSES:
+      conn.execute(
+          'UPDATE orders SET status = ? WHERE id = ?', (new_status, order_id)
+      )
+    if new_payment_status in PAYMENT_STATUSES:
+      conn.execute(
+          'UPDATE orders SET payment_status = ? WHERE id = ?',
+          (new_payment_status, order_id),
+      )
+    conn.commit()
+    flash(f'Order #{order_id} updated.', 'success')
+  conn.close()
+
+  return redirect(get_user_dashboard_url())
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
 
   new_status = request.form.get('status')
   new_payment_status = request.form.get('payment_status')
@@ -2707,5 +3026,11 @@ def update_order_status(order_id):
 
 init_db()
 
+init_db()
+
 if __name__ == '__main__':
+<<<<<<< HEAD
   app.run(debug=True)
+=======
+  app.run(debug=True)
+>>>>>>> 096df195317cf7cad657b4facfe3e6d34a48c862
