@@ -67,7 +67,7 @@ def get_db():
 def cleanup_expired_closed_complaints(conn):
 <<<<<<< HEAD
 =======
-  """Automatically deletes any closed complaint 6 days after its closure timestamp.""""
+  """Automatically deletes any closed complaint 6 days after its closure timestamp.
   conn.execute(
       """DELETE FROM complaints
            WHERE status = 'Closed'
